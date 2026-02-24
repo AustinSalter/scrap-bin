@@ -1,0 +1,61 @@
+[package]
+name = "scrapbin"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+tonic-build = "0.12"
+
+[dependencies]
+# Core Tauri
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# File watching
+notify = { version = "6", features = ["serde"] }
+notify-debouncer-mini = "0.4"
+
+# HTTP client (Chroma REST)
+reqwest = { version = "0.12", features = ["json"] }
+futures = "0.3"
+
+# gRPC (Python sidecar)
+tonic = "0.12"
+prost = "0.13"
+
+# Hashing
+sha2 = "0.10"
+
+# IDs and time
+ulid = "1"
+chrono = { version = "0.4", features = ["serde"] }
+
+# System paths
+dirs = "5"
+
+# Concurrency
+parking_lot = "0.12"
+
+# Process management (SIGTERM on Unix)
+libc = "0.2"
+
+# Error handling
+thiserror = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

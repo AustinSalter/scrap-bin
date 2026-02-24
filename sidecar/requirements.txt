@@ -1,0 +1,8 @@
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+sentence-transformers>=3.0.0
+torch>=2.0.0
+hdbscan>=0.8.33
+numpy>=1.26.0
+scikit-learn>=1.4.0
+protobuf>=4.25.0

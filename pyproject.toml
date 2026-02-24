@@ -1,0 +1,33 @@
+[project]
+name = "scrapbin"
+version = "0.1.0"
+description = "Turn scattered intrigue into context environments"
+requires-python = ">=3.12"
+dependencies = [
+    "sentence-transformers>=3.0.0",
+    "chromadb>=0.5.0",
+    "hdbscan>=0.8.33",
+    "grpcio>=1.60.0",
+    "grpcio-tools>=1.60.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+    "torch>=2.0.0",
+    "protobuf>=4.25.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.ruff.format]
+quote-style = "double"
