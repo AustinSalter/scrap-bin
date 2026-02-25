@@ -51,6 +51,7 @@ class ThreadServiceServicer(sidecar_pb2_grpc.ThreadServiceServicer):
                 grpc.StatusCode.INVALID_ARGUMENT,
                 "at least 2 centroids are required for thread detection",
             )
+            return sidecar_pb2.ThreadResponse()
 
         # Extract parameters with defaults.
         similarity_threshold = (

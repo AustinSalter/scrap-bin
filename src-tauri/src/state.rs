@@ -1,3 +1,4 @@
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -29,6 +30,12 @@ impl Serialize for StateError {
 }
 
 // ---------------------------------------------------------------------------
+// Global mutex for serializing state access
+// ---------------------------------------------------------------------------
+
+static INDEX_STATE: Mutex<Option<IndexState>> = Mutex::new(None);
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -54,10 +61,10 @@ pub struct FileState {
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Loads the incremental index state from `~/.dialectic-rl/index_state.json`.
+/// Loads the incremental index state from disk into the global mutex.
 ///
 /// Returns a default (empty) state if the file does not exist yet.
-pub fn load_state() -> Result<IndexState, StateError> {
+fn load_from_disk() -> Result<IndexState, StateError> {
     let path = crate::config::index_state_path()?;
 
     if !path.exists() {
@@ -71,13 +78,41 @@ pub fn load_state() -> Result<IndexState, StateError> {
     Ok(state)
 }
 
-/// Persists the index state to `~/.dialectic-rl/index_state.json`.
-pub fn save_state(state: &IndexState) -> Result<(), StateError> {
+/// Persists the index state to disk.
+fn save_to_disk(state: &IndexState) -> Result<(), StateError> {
     let path = crate::config::index_state_path()?;
     let data = serde_json::to_string_pretty(state)?;
     fs::write(&path, data)?;
     tracing::debug!("Saved index state with {} file entries", state.files.len());
     Ok(())
+}
+
+/// Acquire the global index state lock and run `f` with mutable access.
+/// The state is loaded from disk on first access and saved back after
+/// mutation. This serializes all state access, preventing race conditions.
+pub fn with_state<F, R>(f: F) -> Result<R, StateError>
+where
+    F: FnOnce(&mut IndexState) -> Result<R, StateError>,
+{
+    let mut guard = INDEX_STATE.lock();
+    let state = guard.get_or_insert_with(|| {
+        load_from_disk().unwrap_or_default()
+    });
+    let result = f(state)?;
+    save_to_disk(state)?;
+    Ok(result)
+}
+
+/// Read-only access to the index state (still acquires the lock).
+pub fn with_state_read<F, R>(f: F) -> Result<R, StateError>
+where
+    F: FnOnce(&IndexState) -> R,
+{
+    let mut guard = INDEX_STATE.lock();
+    let state = guard.get_or_insert_with(|| {
+        load_from_disk().unwrap_or_default()
+    });
+    Ok(f(state))
 }
 
 /// Reads the file at `path` and returns its SHA-256 hex digest.

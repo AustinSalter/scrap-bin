@@ -98,6 +98,14 @@ class SearchResult:
 
 
 @dataclass
+class CollectionStat:
+    """Per-collection statistics."""
+
+    name: str
+    count: int
+
+
+@dataclass
 class PipelineStats:
     """Pipeline statistics matching Rust PipelineStats struct."""
 
@@ -105,11 +113,3 @@ class PipelineStats:
     total_chunks: int
     collections: list[CollectionStat] = field(default_factory=list)
     last_index_time: str | None = None
-
-
-@dataclass
-class CollectionStat:
-    """Per-collection statistics."""
-
-    name: str
-    count: int

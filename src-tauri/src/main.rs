@@ -58,6 +58,7 @@ fn main() {
             clustering::clustering_move_fragment,
             clustering::clustering_rename,
             clustering::clustering_pin_label,
+            clustering::clustering_get_positions,
             // Threads
             threads::threads_detect,
             threads::threads_get_all,
@@ -74,6 +75,8 @@ fn main() {
             pipeline::pipeline_index_vault,
             pipeline::pipeline_index_file,
             pipeline::pipeline_get_stats,
+            pipeline::pipeline_create_note,
+            pipeline::pipeline_get_recent,
             // Search
             search::search_all,
             search::search_collection,

@@ -95,24 +95,13 @@ static GRPC_CLIENT: RwLock<Option<SidecarGrpcClient>> = RwLock::new(None);
 
 #[derive(Debug, Clone)]
 pub struct SidecarGrpcClient {
-    endpoint: String,
+    channel: tonic::transport::Channel,
 }
 
 impl SidecarGrpcClient {
-    fn new(port: u16) -> Self {
-        Self {
-            endpoint: format!("http://127.0.0.1:{port}"),
-        }
-    }
-
     /// Embed a single text into a vector.
     pub async fn embed(&self, text: &str) -> Result<Vec<f32>, GrpcError> {
-        let channel = tonic::transport::Channel::from_shared(self.endpoint.clone())
-            .map_err(|e| GrpcError::Transport(e.to_string()))?
-            .connect()
-            .await?;
-
-        let mut client = EmbeddingServiceClient::new(channel);
+        let mut client = EmbeddingServiceClient::new(self.channel.clone());
 
         let request = tonic::Request::new(sidecar_proto::EmbedRequest {
             text: text.to_string(),
@@ -126,12 +115,7 @@ impl SidecarGrpcClient {
 
     /// Embed a batch of texts into vectors.
     pub async fn embed_batch(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>, GrpcError> {
-        let channel = tonic::transport::Channel::from_shared(self.endpoint.clone())
-            .map_err(|e| GrpcError::Transport(e.to_string()))?
-            .connect()
-            .await?;
-
-        let mut client = EmbeddingServiceClient::new(channel);
+        let mut client = EmbeddingServiceClient::new(self.channel.clone());
 
         let request = tonic::Request::new(sidecar_proto::EmbedBatchRequest { texts });
 
@@ -155,12 +139,7 @@ impl SidecarGrpcClient {
         min_cluster_size: i32,
         min_samples: i32,
     ) -> Result<ClusterResult, GrpcError> {
-        let channel = tonic::transport::Channel::from_shared(self.endpoint.clone())
-            .map_err(|e| GrpcError::Transport(e.to_string()))?
-            .connect()
-            .await?;
-
-        let mut client = ClusteringServiceClient::new(channel);
+        let mut client = ClusteringServiceClient::new(self.channel.clone());
 
         let proto_embeddings = embeddings
             .into_iter()
@@ -195,6 +174,36 @@ impl SidecarGrpcClient {
         })
     }
 
+    /// Project high-dimensional centroids to 2D positions via UMAP.
+    pub async fn project_positions(
+        &self,
+        centroids: Vec<Vec<f32>>,
+        cluster_ids: Vec<String>,
+    ) -> Result<Vec<(String, f32, f32)>, GrpcError> {
+        let mut client = ClusteringServiceClient::new(self.channel.clone());
+
+        let proto_centroids = centroids
+            .into_iter()
+            .map(|values| sidecar_proto::Embedding { values })
+            .collect();
+
+        let request = tonic::Request::new(sidecar_proto::ProjectRequest {
+            centroids: proto_centroids,
+            cluster_ids,
+        });
+
+        let response = client.project_positions(request).await?;
+        let inner = response.into_inner();
+
+        let positions = inner
+            .positions
+            .into_iter()
+            .map(|p| (p.cluster_id, p.x, p.y))
+            .collect();
+
+        Ok(positions)
+    }
+
     /// Detect threads between clusters based on centroid similarity.
     pub async fn detect_threads(
         &self,
@@ -202,12 +211,7 @@ impl SidecarGrpcClient {
         similarity_threshold: f32,
         max_threads: i32,
     ) -> Result<Vec<ThreadConnection>, GrpcError> {
-        let channel = tonic::transport::Channel::from_shared(self.endpoint.clone())
-            .map_err(|e| GrpcError::Transport(e.to_string()))?
-            .connect()
-            .await?;
-
-        let mut client = ThreadServiceClient::new(channel);
+        let mut client = ThreadServiceClient::new(self.channel.clone());
 
         let proto_centroids = centroids
             .into_iter()
@@ -243,12 +247,7 @@ impl SidecarGrpcClient {
 
     /// Health check returning model info.
     pub async fn health(&self) -> Result<HealthInfo, GrpcError> {
-        let channel = tonic::transport::Channel::from_shared(self.endpoint.clone())
-            .map_err(|e| GrpcError::Transport(e.to_string()))?
-            .connect()
-            .await?;
-
-        let mut client = EmbeddingServiceClient::new(channel);
+        let mut client = EmbeddingServiceClient::new(self.channel.clone());
 
         let request = tonic::Request::new(sidecar_proto::HealthRequest {});
 
@@ -268,9 +267,13 @@ impl SidecarGrpcClient {
 // ---------------------------------------------------------------------------
 
 /// Initialize the global gRPC client singleton for the given port.
+/// Uses a lazy channel that connects on first use.
 pub fn init_grpc_client(port: u16) {
+    let channel = tonic::transport::Channel::from_shared(format!("http://127.0.0.1:{port}"))
+        .expect("valid endpoint URI")
+        .connect_lazy();
     let mut guard = GRPC_CLIENT.write();
-    *guard = Some(SidecarGrpcClient::new(port));
+    *guard = Some(SidecarGrpcClient { channel });
     tracing::info!("gRPC client initialized on port {port}");
 }
 

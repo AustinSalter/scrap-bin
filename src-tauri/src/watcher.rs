@@ -165,7 +165,7 @@ fn start_watching(app: AppHandle, vault_path: PathBuf) -> Result<(), WatcherErro
     }
 
     let vault_root = vault_path.clone();
-    let debouncer = new_debouncer(
+    let mut debouncer = new_debouncer(
         Duration::from_millis(300),
         move |result: Result<Vec<DebouncedEvent>, notify::Error>| {
             match result {

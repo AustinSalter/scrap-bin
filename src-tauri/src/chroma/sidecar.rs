@@ -91,13 +91,16 @@ fn poll_health(port: u16) -> bool {
     let deadline = Instant::now() + HEALTH_DEADLINE;
 
     while Instant::now() < deadline {
-        // Use a small tokio runtime for synchronous context.
-        let result = tokio::runtime::Handle::try_current()
-            .map(|handle| handle.block_on(client.heartbeat()))
-            .unwrap_or_else(|_| {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(client.heartbeat())
-            });
+        // Use block_in_place when inside a tokio runtime (safe with multi-thread),
+        // otherwise create a temporary runtime.
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| {
+                handle.block_on(client.heartbeat())
+            })
+        } else {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(client.heartbeat())
+        };
 
         if result.is_ok() {
             return true;

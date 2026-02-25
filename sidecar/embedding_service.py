@@ -6,6 +6,7 @@ Uses sentence-transformers with nomic-embed-text-v1.5 for text embedding.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -40,6 +41,7 @@ class EmbeddingServiceServicer(sidecar_pb2_grpc.EmbeddingServiceServicer):
 
     def __init__(self, model: SentenceTransformer, device: str) -> None:
         self._model = model
+        self._model_lock = threading.Lock()
         self._device = device
         self._model_name = MODEL_NAME
         self._dimension: int = model.get_sentence_embedding_dimension()  # type: ignore[assignment]
@@ -59,13 +61,15 @@ class EmbeddingServiceServicer(sidecar_pb2_grpc.EmbeddingServiceServicer):
         """Embed a single text into a vector."""
         if not request.text:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "text must not be empty")
+            return sidecar_pb2.EmbedResponse()
 
         start = time.perf_counter()
-        embedding: NDArray[np.float32] = self._model.encode(
-            request.text,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-        )
+        with self._model_lock:
+            embedding: NDArray[np.float32] = self._model.encode(
+                request.text,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+            )
         elapsed = time.perf_counter() - start
         logger.debug("Embed: %.3fs for 1 text", elapsed)
 
@@ -83,18 +87,20 @@ class EmbeddingServiceServicer(sidecar_pb2_grpc.EmbeddingServiceServicer):
         texts: list[str] = list(request.texts)
         if not texts:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "texts must not be empty")
+            return sidecar_pb2.EmbedBatchResponse()
 
         start = time.perf_counter()
         all_embeddings: list[sidecar_pb2.Embedding] = []
 
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i : i + BATCH_SIZE]
-            vectors: NDArray[np.float32] = self._model.encode(
-                batch,
-                convert_to_numpy=True,
-                normalize_embeddings=True,
-                batch_size=BATCH_SIZE,
-            )
+            with self._model_lock:
+                vectors: NDArray[np.float32] = self._model.encode(
+                    batch,
+                    convert_to_numpy=True,
+                    normalize_embeddings=True,
+                    batch_size=BATCH_SIZE,
+                )
             for vec in vectors:
                 all_embeddings.append(sidecar_pb2.Embedding(values=vec.tolist()))
 
@@ -128,7 +134,7 @@ def load_model() -> tuple[SentenceTransformer, str]:
     device = _detect_device()
     logger.info("Loading model %s on device=%s ...", MODEL_NAME, device)
     start = time.perf_counter()
-    model = SentenceTransformer(MODEL_NAME, device=device, trust_remote_code=True)
+    model = SentenceTransformer(MODEL_NAME, device=device)
     elapsed = time.perf_counter() - start
     logger.info("Model loaded in %.2fs", elapsed)
     return model, device

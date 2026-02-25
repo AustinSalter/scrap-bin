@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,22 @@ impl std::fmt::Display for SourceType {
         };
         write!(f, "{}", label)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers (used by all source modules)
+// ---------------------------------------------------------------------------
+
+/// Computes the SHA-256 hex digest of a string.
+pub fn content_hash(text: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(text.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Estimates the token count from character length (~4 chars/token).
+pub fn estimate_tokens(text: &str) -> usize {
+    (text.len() as f64 / 4.0).ceil() as usize
 }
 
 // ---------------------------------------------------------------------------

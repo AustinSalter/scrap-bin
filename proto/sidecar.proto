@@ -48,6 +48,8 @@ message HealthResponse {
 service ClusteringService {
   // Cluster embeddings using HDBSCAN.
   rpc Cluster (ClusterRequest) returns (ClusterResponse);
+  // Project high-dimensional centroids to 2D positions via UMAP.
+  rpc ProjectPositions (ProjectRequest) returns (ProjectResponse);
 }
 
 message ClusterRequest {
@@ -68,6 +70,21 @@ message ClusterInfo {
   int32 size = 2;
   repeated float centroid = 3;
   repeated string member_ids = 4;
+}
+
+message ProjectRequest {
+  repeated Embedding centroids = 1;
+  repeated string cluster_ids = 2;
+}
+
+message ProjectResponse {
+  repeated Position2D positions = 1;
+}
+
+message Position2D {
+  string cluster_id = 1;
+  float x = 2;
+  float y = 3;
 }
 
 // ─── Thread Detection Service ────────────────────────────────────────────────

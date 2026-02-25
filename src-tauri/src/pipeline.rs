@@ -5,7 +5,10 @@ use thiserror::Error;
 use ulid::Ulid;
 
 use crate::chroma::client::{get_client, ChromaError};
-use crate::chroma::collections::{get_collection_id, COLLECTION_VAULT};
+use crate::chroma::collections::{
+    get_collection_id, COLLECTION_PODCASTS, COLLECTION_READWISE, COLLECTION_TWITTER,
+    COLLECTION_VAULT,
+};
 use crate::chunker;
 use crate::fragment::{self, Fragment, SourceType};
 use crate::grpc_client::{get_grpc_client, GrpcError};
@@ -66,6 +69,27 @@ pub struct IndexFileResult {
     pub skipped: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateNoteParams {
+    pub content: String,
+    pub cluster_id: Option<i32>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateNoteResult {
+    pub id: String,
+    pub cluster_id: Option<i32>,
+}
+
+/// Content collections queried for recent fragments.
+const CONTENT_COLLECTIONS: &[&str] = &[
+    COLLECTION_VAULT,
+    COLLECTION_TWITTER,
+    COLLECTION_READWISE,
+    COLLECTION_PODCASTS,
+];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -86,7 +110,6 @@ fn walk_md_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
 fn walk_md_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), std::io::Error> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
-        let path = entry.path();
         let file_name = entry.file_name();
         let name = file_name.to_string_lossy();
 
@@ -94,11 +117,18 @@ fn walk_md_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), s
             continue;
         }
 
-        if path.is_dir() {
-            walk_md_files_recursive(&path, files)?;
-        } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
-            files.push(path);
+        // Use entry.file_type() which does NOT follow symlinks, preventing
+        // infinite recursion on symlink cycles.
+        let ft = entry.file_type()?;
+        if ft.is_dir() {
+            walk_md_files_recursive(&entry.path(), files)?;
+        } else if ft.is_file() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                files.push(path);
+            }
         }
+        // Symlinks are intentionally skipped to avoid cycles.
     }
     Ok(())
 }
@@ -140,11 +170,13 @@ pub async fn process_file(
     let content = std::fs::read_to_string(file_path)?;
     let file_hash = sha256_of_bytes(content.as_bytes());
 
-    // ---- 2. Check if reindex is needed -------------------------------------
-    let mut index_state = state::load_state()
-        .map_err(|e| PipelineError::State(e.to_string()))?;
+    // ---- 2. Check if reindex is needed (locked state access) ---------------
+    let needs_reindex = state::with_state_read(|s| {
+        state::file_needs_reindex(s, &relative_path, &file_hash)
+    })
+    .map_err(|e| PipelineError::State(e.to_string()))?;
 
-    if !state::file_needs_reindex(&index_state, &relative_path, &file_hash) {
+    if !needs_reindex {
         return Ok(IndexFileResult {
             path: relative_path,
             chunks_created: 0,
@@ -159,14 +191,11 @@ pub async fn process_file(
     let chunks = chunker::chunk_markdown(&parsed, &relative_path);
 
     if chunks.is_empty() {
-        state::update_file_state(
-            &mut index_state,
-            relative_path.clone(),
-            file_hash,
-            vec![],
-        );
-        state::save_state(&index_state)
-            .map_err(|e| PipelineError::State(e.to_string()))?;
+        state::with_state(|s| {
+            state::update_file_state(s, relative_path.clone(), file_hash.clone(), vec![]);
+            Ok(())
+        })
+        .map_err(|e| PipelineError::State(e.to_string()))?;
         return Ok(IndexFileResult {
             path: relative_path,
             chunks_created: 0,
@@ -206,13 +235,17 @@ pub async fn process_file(
     let client = get_client();
     let vault_coll_id = get_collection_id(COLLECTION_VAULT).await?;
 
-    // Remove previous chunks for this source_path.
-    if let Some(old_state) = index_state.files.get(&relative_path) {
-        if !old_state.chunk_ids.is_empty() {
-            client
-                .delete(&vault_coll_id, old_state.chunk_ids.clone())
-                .await?;
-        }
+    // Remove previous chunks for this source_path (locked state access).
+    let old_chunk_ids: Vec<String> = state::with_state_read(|s| {
+        s.files
+            .get(&relative_path)
+            .map(|f| f.chunk_ids.clone())
+            .unwrap_or_default()
+    })
+    .map_err(|e| PipelineError::State(e.to_string()))?;
+
+    if !old_chunk_ids.is_empty() {
+        client.delete(&vault_coll_id, old_chunk_ids).await?;
     }
 
     // ---- 8. Add new chunks + embeddings to Chroma --------------------------
@@ -233,16 +266,13 @@ pub async fn process_file(
         )
         .await?;
 
-    // ---- 9. Update index state ---------------------------------------------
+    // ---- 9. Update index state (locked) ------------------------------------
     let chunks_created = fragments.len();
-    state::update_file_state(
-        &mut index_state,
-        relative_path.clone(),
-        file_hash,
-        ids,
-    );
-    state::save_state(&index_state)
-        .map_err(|e| PipelineError::State(e.to_string()))?;
+    state::with_state(|s| {
+        state::update_file_state(s, relative_path.clone(), file_hash, ids.clone());
+        Ok(())
+    })
+    .map_err(|e| PipelineError::State(e.to_string()))?;
 
     tracing::debug!("Indexed {}: {} chunks", relative_path, chunks_created);
 
@@ -344,18 +374,17 @@ pub async fn pipeline_get_stats() -> Result<PipelineStats, PipelineError> {
         });
     }
 
-    let index_state = state::load_state()
-        .map_err(|e| PipelineError::State(e.to_string()))?;
-
-    let total_files_indexed = index_state.files.len();
-
-    // Find the most recent index time across all files.
-    let last_index_time = index_state
-        .files
-        .values()
-        .map(|f| f.last_indexed.as_str())
-        .max()
-        .map(|s| s.to_string());
+    let (total_files_indexed, last_index_time) = state::with_state_read(|s| {
+        let count = s.files.len();
+        let last_time = s
+            .files
+            .values()
+            .map(|f| f.last_indexed.as_str())
+            .max()
+            .map(|t| t.to_string());
+        (count, last_time)
+    })
+    .map_err(|e| PipelineError::State(e.to_string()))?;
 
     Ok(PipelineStats {
         total_files_indexed,
@@ -363,4 +392,197 @@ pub async fn pipeline_get_stats() -> Result<PipelineStats, PipelineError> {
         collections: collection_stats,
         last_index_time,
     })
+}
+
+/// Create a user-authored note fragment, embed it, and store in the vault
+/// collection. Sets `is_user_note: true` in Chroma metadata.
+#[tauri::command]
+pub async fn pipeline_create_note(
+    params: CreateNoteParams,
+) -> Result<CreateNoteResult, PipelineError> {
+    let content = params.content.trim().to_string();
+    if content.is_empty() {
+        return Err(PipelineError::State("Note content must not be empty".to_string()));
+    }
+
+    let grpc = get_grpc_client()?;
+    let client = get_client();
+    let vault_coll_id = get_collection_id(COLLECTION_VAULT).await?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let id = ulid::Ulid::new().to_string();
+    let content_hash = sha256_of_bytes(content.as_bytes());
+    let tags = params.tags.clone().unwrap_or_default();
+
+    // Embed the note content.
+    let embedding = grpc.embed(&content).await?;
+
+    // Build metadata.
+    let cluster_id = params.cluster_id.unwrap_or(-1);
+    let metadata = serde_json::json!({
+        "id": id,
+        "source_type": "vault",
+        "source_path": "user_note",
+        "chunk_index": 0,
+        "heading_path": "",
+        "tags": tags.join(","),
+        "token_count": fragment::estimate_tokens(&content),
+        "content_hash": content_hash,
+        "modified_at": now,
+        "cluster_id": cluster_id,
+        "is_user_note": true,
+    });
+
+    client
+        .add(
+            &vault_coll_id,
+            vec![id.clone()],
+            Some(vec![embedding]),
+            Some(vec![content.clone()]),
+            Some(vec![metadata]),
+        )
+        .await?;
+
+    // If a cluster_id was provided, add the fragment ID to that cluster's
+    // fragment_ids list in the clusters collection.
+    if let Some(cid) = params.cluster_id {
+        if cid >= 0 {
+            if let Ok(clusters_coll_id) =
+                get_collection_id(crate::chroma::collections::COLLECTION_CLUSTERS).await
+            {
+                let doc_id = format!("cluster_{}", cid);
+                let existing = client
+                    .get(
+                        &clusters_coll_id,
+                        Some(vec![doc_id.clone()]),
+                        None,
+                        Some(vec!["metadatas".to_string()]),
+                    )
+                    .await;
+
+                if let Ok(existing) = existing {
+                    if let Some(meta) = existing
+                        .metadatas
+                        .as_ref()
+                        .and_then(|m| m.first())
+                        .and_then(|m| m.as_ref())
+                    {
+                        let mut frag_ids: Vec<String> = meta
+                            .get("fragment_ids")
+                            .and_then(|v| v.as_str())
+                            .map(|s| {
+                                s.split(',')
+                                    .filter(|s| !s.is_empty())
+                                    .map(|s| s.to_string())
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        frag_ids.push(id.clone());
+
+                        let size = meta
+                            .get("size")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as usize
+                            + 1;
+
+                        let _ = client
+                            .update(
+                                &clusters_coll_id,
+                                vec![doc_id],
+                                None,
+                                None,
+                                Some(vec![serde_json::json!({
+                                    "size": size,
+                                    "fragment_ids": frag_ids.join(","),
+                                })]),
+                            )
+                            .await;
+                    }
+                }
+            }
+        }
+    }
+
+    tracing::info!("Created user note: {}", id);
+
+    Ok(CreateNoteResult {
+        id,
+        cluster_id: params.cluster_id,
+    })
+}
+
+/// Fetch recent fragments across all content collections, sorted by
+/// `modified_at` descending.
+#[tauri::command]
+pub async fn pipeline_get_recent(
+    limit: Option<usize>,
+) -> Result<Vec<serde_json::Value>, PipelineError> {
+    let client = get_client();
+    let max_results = limit.unwrap_or(50);
+    let mut fragments: Vec<serde_json::Value> = Vec::new();
+
+    for coll_name in CONTENT_COLLECTIONS {
+        let coll_id = match get_collection_id(coll_name).await {
+            Ok(id) => id,
+            Err(_) => continue,
+        };
+
+        let result = client
+            .get(
+                &coll_id,
+                None,
+                None,
+                Some(vec![
+                    "documents".to_string(),
+                    "metadatas".to_string(),
+                ]),
+            )
+            .await;
+
+        let result = match result {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        for (i, id) in result.ids.iter().enumerate() {
+            let doc = result
+                .documents
+                .as_ref()
+                .and_then(|docs| docs.get(i).cloned())
+                .flatten()
+                .unwrap_or_default();
+            let meta = result
+                .metadatas
+                .as_ref()
+                .and_then(|metas| metas.get(i).cloned())
+                .flatten()
+                .unwrap_or(serde_json::json!({}));
+
+            fragments.push(serde_json::json!({
+                "id": id,
+                "content": doc,
+                "source_type": coll_name,
+                "metadata": meta,
+            }));
+        }
+    }
+
+    // Sort by modified_at descending.
+    fragments.sort_by(|a, b| {
+        let a_time = a
+            .get("metadata")
+            .and_then(|m| m.get("modified_at"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let b_time = b
+            .get("metadata")
+            .and_then(|m| m.get("modified_at"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        b_time.cmp(a_time)
+    });
+
+    fragments.truncate(max_results);
+
+    Ok(fragments)
 }

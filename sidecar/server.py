@@ -24,9 +24,9 @@ import argparse
 import logging
 import signal
 import sys
+import threading
 import time
 from concurrent import futures
-from types import FrameType
 
 import grpc
 
@@ -92,30 +92,30 @@ def serve(port: int, workers: int) -> None:
         server,
     )
 
-    listen_addr = f"[::]:{port}"
+    listen_addr = f"127.0.0.1:{port}"
     server.add_insecure_port(listen_addr)
     server.start()
     logger.info("Server started on %s (workers=%d, device=%s)", listen_addr, workers, device)
 
     # Graceful shutdown on SIGTERM / SIGINT.
-    shutdown_event = False
+    # Use a threading.Event to avoid blocking inside the signal handler,
+    # which can deadlock the main thread.
+    stop_event = threading.Event()
 
-    def _handle_signal(signum: int, frame: FrameType | None) -> None:
-        nonlocal shutdown_event
-        if shutdown_event:
-            return
-        shutdown_event = True
+    def _handle_signal(signum: int, _frame: object) -> None:
         sig_name = signal.Signals(signum).name
-        logger.info("Received %s, shutting down gracefully ...", sig_name)
-        stopped = server.stop(grace=_SHUTDOWN_GRACE_SECONDS)
-        stopped.wait()
-        logger.info("Server stopped.")
+        logger.info("Received %s, requesting shutdown ...", sig_name)
+        stop_event.set()
 
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    # Block until shutdown.
-    server.wait_for_termination()
+    # Block until signal received, then shut down gracefully.
+    stop_event.wait()
+    logger.info("Shutting down gracefully ...")
+    stopped = server.stop(grace=_SHUTDOWN_GRACE_SECONDS)
+    stopped.wait()
+    logger.info("Server stopped.")
 
 
 def main() -> None:

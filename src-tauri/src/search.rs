@@ -211,6 +211,13 @@ pub async fn search_all(
     Ok(all_results)
 }
 
+/// Validate that a collection name contains only safe characters.
+fn is_valid_collection_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
 /// Search a single named collection.
 #[tauri::command]
 pub async fn search_collection(
@@ -220,6 +227,10 @@ pub async fn search_collection(
     let query = params.query.trim();
     if query.is_empty() {
         return Err(SearchError::EmptyQuery);
+    }
+
+    if !is_valid_collection_name(&collection) {
+        return Err(SearchError::NoCollections);
     }
 
     let n_results = params.n_results.unwrap_or(DEFAULT_N_RESULTS);

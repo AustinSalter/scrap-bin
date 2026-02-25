@@ -1,0 +1,122 @@
+/* ── Fonts ── */
+@import '@fontsource/cormorant-garamond/400.css';
+@import '@fontsource/cormorant-garamond/500.css';
+@import '@fontsource/cormorant-garamond/600.css';
+@import '@fontsource/libre-baskerville/400.css';
+@import '@fontsource/libre-baskerville/700.css';
+@import '@fontsource/lora/400.css';
+@import '@fontsource/lora/400-italic.css';
+@import '@fontsource/lora/500.css';
+@import '@fontsource/cousine/400.css';
+@import '@fontsource/cousine/700.css';
+@import '@fontsource/archivo-narrow/600.css';
+
+/* ── Tokens ── */
+@import './tokens.css';
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── macOS drag region ── */
+.drag-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--drag-region-height);
+  -webkit-app-region: drag;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.drag-region-exempt {
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rule);
+}
+
+/* ── Error Toast ── */
+.error-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 400px;
+  padding: 10px 14px;
+  background: var(--ink, #09090b);
+  color: #fff;
+  border-radius: 6px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  animation: error-toast-in 0.2s ease-out;
+}
+
+.error-toast-msg {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.error-toast-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.error-toast-close:hover {
+  color: #fff;
+}
+
+@keyframes error-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -61,6 +61,13 @@ pub struct ClusterParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterPosition {
+    pub label: i32,
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterView {
     pub label: i32,
     pub display_label: String,
@@ -95,7 +102,9 @@ fn auto_label(documents: &[Option<String>]) -> String {
             if label.len() <= 50 {
                 return label.to_string();
             }
-            return format!("{}...", &label[..47]);
+            // Truncate at a char boundary to avoid panicking on multi-byte UTF-8.
+            let truncated: String = label.chars().take(47).collect();
+            return format!("{truncated}...");
         }
     }
     "Unlabeled cluster".to_string()
@@ -214,10 +223,11 @@ pub async fn clustering_run(
     }
 
     // ---- 2. Call Python sidecar for HDBSCAN clustering ---------------------
+    let ids_for_cluster = all_ids.clone();
     let cluster_result = grpc
         .cluster(
-            all_embeddings.clone(),
-            all_ids.clone(),
+            all_embeddings,
+            ids_for_cluster,
             min_cluster_size,
             min_samples,
         )
@@ -938,4 +948,76 @@ pub async fn clustering_pin_label(
         .await?;
 
     Ok(())
+}
+
+/// Fetch cluster centroids from the clusters collection, project to 2D via
+/// UMAP through the Python sidecar, and return normalized positions.
+#[tauri::command]
+pub async fn clustering_get_positions() -> Result<Vec<ClusterPosition>, ClusteringError> {
+    let client = get_client();
+    let grpc = get_grpc_client()?;
+    let clusters_coll_id = get_collection_id(COLLECTION_CLUSTERS).await?;
+
+    let result = client
+        .get(
+            &clusters_coll_id,
+            None,
+            None,
+            Some(vec![
+                "embeddings".to_string(),
+                "metadatas".to_string(),
+            ]),
+        )
+        .await?;
+
+    if result.ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let embeddings = match result.embeddings {
+        Some(ref embs) => embs,
+        None => return Ok(Vec::new()),
+    };
+
+    let mut centroids: Vec<Vec<f32>> = Vec::new();
+    let mut cluster_ids: Vec<String> = Vec::new();
+    let mut label_map: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+
+    for (i, id) in result.ids.iter().enumerate() {
+        let centroid = embeddings.get(i).cloned().unwrap_or_default();
+        if centroid.is_empty() {
+            continue;
+        }
+
+        let label = result
+            .metadatas
+            .as_ref()
+            .and_then(|m| m.get(i))
+            .and_then(|m| m.as_ref())
+            .and_then(|m| m.get("cluster_label"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(-1) as i32;
+
+        centroids.push(centroid);
+        cluster_ids.push(id.clone());
+        label_map.insert(id.clone(), label);
+    }
+
+    if centroids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let projected = grpc
+        .project_positions(centroids, cluster_ids)
+        .await?;
+
+    let positions = projected
+        .into_iter()
+        .map(|(cluster_id, x, y)| {
+            let label = label_map.get(&cluster_id).copied().unwrap_or(-1);
+            ClusterPosition { label, x, y }
+        })
+        .collect();
+
+    Ok(positions)
 }

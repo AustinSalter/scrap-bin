@@ -40,8 +40,24 @@ class ChromaClient:
         self,
         host: str = DEFAULT_HOST,
         port: int = DEFAULT_PORT,
+        max_retries: int = 3,
     ) -> None:
-        self.client = chromadb.HttpClient(host=host, port=port)
+        last_err: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                self.client = chromadb.HttpClient(host=host, port=port)
+                self.client.heartbeat()  # verify connection
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                if attempt < max_retries - 1:
+                    import time
+
+                    time.sleep(1.0 * (attempt + 1))
+        msg = f"Failed to connect to Chroma at {host}:{port} after {max_retries} attempts"
+        if last_err is not None:
+            msg = f"{msg}: {last_err}"
+        raise ConnectionError(msg)
 
     def heartbeat(self) -> int:
         """Check if Chroma is alive. Returns nanosecond heartbeat."""

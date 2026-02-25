@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dialectic — Concept: The Landscape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Archivo+Narrow:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&family=Cousine:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   TIDEPOOL PALETTE (LOCKED)
+   Paper whites · Black ink · Ocean cerulean · Lifted signals
+   ═══════════════════════════════════════ */
+:root {
+  /* Zinc backgrounds */
+  --bg:      #ffffff;
+  --bg2:     #fafafa;
+  --bg3:     #f4f4f5;
+  --surface: #e4e4e7;
+  --rule:    #d4d4d8;
+
+  /* Black ink */
+  --ghost:     #a1a1aa;
+  --muted:     #71717a;
+  --secondary: #52525b;
+  --primary:   #18181b;
+  --ink:       #09090b;
+
+  /* Cerulean accent */
+  --accent:       #5b8def;
+  --accent-hover: #78a3ff;
+  --accent-bg:    rgba(91,141,239,0.06);
+  --accent-12:    rgba(91,141,239,0.12);
+  --accent-20:    rgba(91,141,239,0.20);
+
+  /* Lifted signals */
+  --signal-blue:   #60a5fa;
+  --signal-green:  #34d399;
+  --signal-amber:  #fbbf24;
+  --signal-purple: #a78bfa;
+  --signal-red:    #f87171;
+
+  /* Semantic */
+  --ok:   #22c55e;
+  --warn: #f59e0b;
+  --err:  #ef4444;
+
+  /* Borders */
+  --border:  #e4e4e7;
+  --border2: #d4d4d8;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ═══════════════════════════════════════
+   STUDY CHROME (Tidepool-native)
+   ═══════════════════════════════════════ */
+body {
+  background: var(--bg2);
+  color: var(--secondary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 32px;
+  line-height: 1.6;
+}
+
+.study-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 12px;
+}
+.study-header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--ink);
+}
+.study-header h1 em { font-style: italic; color: var(--muted); font-weight: 300; }
+.study-header .meta {
+  font-size: 10px;
+  color: var(--ghost);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.study-subtitle {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 48px;
+  max-width: 640px;
+  line-height: 1.8;
+}
+
+.section { margin-bottom: 64px; }
+.section-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.section-desc {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 24px;
+  max-width: 680px;
+}
+
+.annotation {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--bg);
+  border-left: 2px solid var(--border2);
+  border-radius: 0 4px 4px 0;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border2);
+}
+.annotation p {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+  font-style: italic;
+}
+.annotation strong { color: var(--primary); font-style: normal; }
+
+/* ═══════════════════════════════════════
+   FRAME (the "screen" wrapper)
+   ═══════════════════════════════════════ */
+.frame {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 24px rgba(0,0,0,0.08);
+  border: 1px solid var(--border2);
+}
+
+.frame-title {
+  background: var(--primary);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.frame-dots { display: flex; gap: 6px; }
+.frame-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.frame-dots span:first-child { background: #ef4444; }
+.frame-dots span:nth-child(2) { background: #f59e0b; }
+.frame-dots span:nth-child(3) { background: #22c55e; }
+.frame-title-text {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--ghost);
+  margin-left: 8px;
+}
+
+.frame-body {
+  background: var(--bg);
+  display: flex;
+  height: 640px;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════
+   RAIL
+   ═══════════════════════════════════════ */
+.rail {
+  width: 44px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.rail-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--primary);
+  margin-bottom: 16px;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.rail-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  transition: all 0.15s;
+  position: relative;
+}
+.rail-icon:hover { background: var(--bg3); color: var(--primary); }
+.rail-icon.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.rail-icon.has-badge::after {
+  content: '';
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--signal-red);
+}
+.rail-spacer { flex: 1; }
+
+/* ═══════════════════════════════════════
+   STREAM PANEL
+   ═══════════════════════════════════════ */
+.stream {
+  width: 220px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+
+.stream-header {
+  padding: 12px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.stream-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+}
+.stream-count {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.stream-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.stream-group-label {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ghost);
+  padding: 10px 8px 4px;
+}
+
+.stream-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+.stream-item:hover {
+  background: var(--bg3);
+  border-color: var(--border);
+}
+.stream-item.is-selected {
+  background: var(--accent-bg);
+  border-color: var(--accent-12);
+}
+.stream-item.is-new {
+  border-left: 2px solid var(--signal-red);
+  padding-left: 8px;
+}
+
+.stream-item-src {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+.stream-item-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.stream-item-origin {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+.stream-item-time {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-left: auto;
+}
+.stream-item-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 11px;
+  color: var(--primary);
+  line-height: 1.4;
+}
+.stream-item-cluster {
+  display: inline-block;
+  font-family: 'Cousine', monospace;
+  font-size: 7px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════
+   LANDSCAPE (the cluster map — center)
+   ═══════════════════════════════════════ */
+.landscape {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+.landscape-toolbar {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  z-index: 2;
+}
+
+.search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg3);
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  transition: all 0.2s;
+}
+.search-box:focus-within,
+.search-box.is-active {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.search-icon {
+  font-size: 12px;
+  color: var(--ghost);
+  flex-shrink: 0;
+}
+.search-text {
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--ghost);
+  font-style: italic;
+}
+.search-key {
+  margin-left: auto;
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--ghost);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg2);
+}
+
+.toolbar-btn {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid var(--border2);
+  color: var(--secondary);
+  background: var(--bg);
+}
+.toolbar-btn:hover { background: var(--bg3); color: var(--primary); }
+.toolbar-btn.is-accent {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.landscape-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Crosshatch — Tidepool style (light, faint) */
+.landscape-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 10.5px),
+    repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 10.5px);
+  pointer-events: none;
+}
+
+/* Radial fade from center */
+.landscape-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, var(--bg) 85%);
+  pointer-events: none;
+}
+
+.cluster-map {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ═══════ Cluster nodes ═══════ */
+.c-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.c-node:hover { transform: translate(-50%, -50%) scale(1.08); }
+
+.c-node-ring {
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+.c-node:hover .c-node-ring {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-bg), 0 2px 12px rgba(0,0,0,0.06);
+}
+.c-node.is-active .c-node-ring {
+  border-color: var(--accent);
+  border-width: 2px;
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 6px var(--accent-bg), 0 2px 16px rgba(91,141,239,0.1);
+}
+
+.c-node-count {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+}
+.c-node.is-active .c-node-count { color: var(--accent); font-weight: 700; }
+
+.c-node-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--secondary);
+  transition: color 0.2s;
+}
+.c-node:hover .c-node-label,
+.c-node.is-active .c-node-label { color: var(--accent); }
+
+.c-node-sub {
+  position: absolute;
+  top: calc(100% + 22px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'Cousine', monospace;
+  font-size: 7px;
+  color: var(--ghost);
+  letter-spacing: 0.03em;
+}
+
+/* Satellite nodes */
+.c-sat {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+}
+
+/* New-item pulse */
+.c-new-dot {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--signal-red);
+  transform: translate(-50%, -50%);
+  animation: pulse-new 2s infinite;
+}
+@keyframes pulse-new {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(248,113,113,0.3); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(248,113,113,0); }
+}
+
+/* Your-note markers (diamond) */
+.c-note-marker {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  background: var(--accent-20);
+  border: 1px solid var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+  cursor: pointer;
+}
+
+/* ═══════ Status bar ═══════ */
+.landscape-status {
+  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  z-index: 2;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+.status-sep {
+  width: 1px;
+  height: 10px;
+  background: var(--border);
+}
+
+/* ═══════════════════════════════════════
+   MARGIN PANEL (right — commentary)
+   ═══════════════════════════════════════ */
+.margin {
+  width: 320px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+
+.margin-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.margin-cluster-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.margin-cluster-meta {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-top: 4px;
+}
+.margin-close {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--ghost);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.margin-close:hover { background: var(--bg3); color: var(--primary); }
+
+.margin-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* Fragment items */
+.frag {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.frag:hover { background: var(--bg2); }
+.frag.is-yours {
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+  padding-left: 14px;
+}
+.frag-src {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.frag-src-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.frag-src-text {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+.frag-content {
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  line-height: 1.6;
+}
+.frag.is-yours .frag-content {
+  color: var(--primary);
+  font-style: italic;
+}
+.frag-tags {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.frag-tag {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* Commentary compose */
+.margin-compose {
+  border-top: 1px solid var(--border2);
+  padding: 12px 16px;
+  background: var(--bg2);
+}
+.compose-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ghost);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.compose-label-icon {
+  width: 12px; height: 12px;
+  background: var(--accent-20);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+.compose-area {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  border-radius: 6px;
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  line-height: 1.6;
+  font-style: italic;
+}
+.compose-area .cursor-line {
+  display: inline-block;
+  width: 1.5px;
+  height: 14px;
+  background: var(--accent);
+  animation: blink 1.2s infinite;
+  vertical-align: text-bottom;
+  margin-left: 1px;
+}
+@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+.compose-hint {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+.compose-hint kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 8px;
+}
+
+/* State: overview (no margin, full landscape) */
+.frame-body.state-overview .margin { display: none; }
+.frame-body.state-overview .landscape { flex: 1; }
+
+/* ═══════════════════════════════════════
+   ANNOTATION GRID
+   ═══════════════════════════════════════ */
+.ann-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.ann-col h4 {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.ann-col p {
+  font-family: 'Lora', serif;
+  font-size: 10px;
+  font-style: italic;
+  color: var(--ghost);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════ -->
+<div class="study-header">
+  <h1>Dialectic — <em>The Landscape</em></h1>
+  <div class="meta">Concept · Feb 2026</div>
+</div>
+
+<div class="study-subtitle">
+  Things arrive. They find their kin. You witness the pattern. You write about what you see. <br>
+  The map is the home screen. The stream is periphery. Your notes are first-class fragments.
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     CONCEPT 1: The full interaction
+     ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">01 — The Full Loop: Stream → Landscape → Margin</div>
+  <div class="section-desc">
+    You open the app. You see where your thinking lives. New things pulse at the edges. You click a cluster to look closer. Your commentary becomes part of the landscape.
+  </div>
+
+  <div class="frame">
+    <div class="frame-title">
+      <div class="frame-dots"><span></span><span></span><span></span></div>
+      <span class="frame-title-text">Dialectic</span>
+    </div>
+    <div class="frame-body">
+      <!-- RAIL -->
+      <div class="rail">
+        <div class="rail-logo">δ</div>
+        <div class="rail-icon active" title="Landscape">◎</div>
+        <div class="rail-icon has-badge" title="Stream">↓</div>
+        <div class="rail-icon" title="Search">⌕</div>
+        <div class="rail-spacer"></div>
+        <div class="rail-icon" title="Settings">⚙</div>
+      </div>
+
+      <!-- STREAM -->
+      <div class="stream">
+        <div class="stream-header">
+          <span class="stream-title">Stream</span>
+          <span class="stream-count">7 new</span>
+        </div>
+        <div class="stream-body">
+          <div class="stream-group-label">Today</div>
+
+          <div class="stream-item is-new is-selected">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-amber);"></div>
+              <span class="stream-item-origin">Stratechery</span>
+              <span class="stream-item-time">2h</span>
+            </div>
+            <div class="stream-item-title">The AI Strategy Tax</div>
+            <div class="stream-item-cluster">→ Compression</div>
+          </div>
+
+          <div class="stream-item is-new">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-blue);"></div>
+              <span class="stream-item-origin">@eigenrobot</span>
+              <span class="stream-item-time">3h</span>
+            </div>
+            <div class="stream-item-title">Compression is all you need (thread)</div>
+            <div class="stream-item-cluster">→ Compression</div>
+          </div>
+
+          <div class="stream-item is-new">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-green);"></div>
+              <span class="stream-item-origin">Obsidian</span>
+              <span class="stream-item-time">4h</span>
+            </div>
+            <div class="stream-item-title">Johannine Logos as information theory</div>
+            <div class="stream-item-cluster">→ Logos &amp; Representation</div>
+          </div>
+
+          <div class="stream-item">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-purple);"></div>
+              <span class="stream-item-origin">Readwise</span>
+              <span class="stream-item-time">6h</span>
+            </div>
+            <div class="stream-item-title">Solomonoff induction and Occam's razor</div>
+            <div class="stream-item-cluster">→ Compression</div>
+          </div>
+
+          <div class="stream-group-label">Yesterday</div>
+
+          <div class="stream-item">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-amber);"></div>
+              <span class="stream-item-origin">Diff</span>
+              <span class="stream-item-time">1d</span>
+            </div>
+            <div class="stream-item-title">China's semiconductor strategy pivot</div>
+          </div>
+
+          <div class="stream-item">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-blue);"></div>
+              <span class="stream-item-origin">@danluu</span>
+              <span class="stream-item-time">1d</span>
+            </div>
+            <div class="stream-item-title">Why latency matters more than throughput</div>
+          </div>
+
+          <div class="stream-item">
+            <div class="stream-item-src">
+              <div class="stream-item-dot" style="background:var(--signal-green);"></div>
+              <span class="stream-item-origin">Obsidian</span>
+              <span class="stream-item-time">2d</span>
+            </div>
+            <div class="stream-item-title">Dialectical reasoning — Hegel notes</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LANDSCAPE -->
+      <div class="landscape">
+        <div class="landscape-toolbar">
+          <div class="search-box">
+            <span class="search-icon">⌕</span>
+            <span class="search-text">Search fragments, clusters…</span>
+            <span class="search-key">⌘K</span>
+          </div>
+          <div class="toolbar-btn">Re-cluster</div>
+        </div>
+
+        <div class="landscape-canvas">
+          <svg style="position:absolute;inset:0;z-index:0;width:100%;height:100%;" preserveAspectRatio="none">
+            <line x1="38%" y1="35%" x2="65%" y2="55%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="38%" y1="35%" x2="72%" y2="25%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="38%" y1="35%" x2="25%" y2="70%" stroke="var(--accent-20)" stroke-width="1.5"/>
+            <line x1="65%" y1="55%" x2="50%" y2="78%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="72%" y1="25%" x2="88%" y2="42%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="25%" y1="70%" x2="15%" y2="48%" stroke="var(--rule)" stroke-width="1"/>
+          </svg>
+
+          <div class="cluster-map">
+            <!-- COMPRESSION — large, active -->
+            <div class="c-node is-active" style="left:38%;top:35%;">
+              <div class="c-node-ring" style="width:72px;height:72px;">
+                <span class="c-node-count">24</span>
+              </div>
+              <div class="c-node-label">Compression</div>
+              <div class="c-node-sub">epistemology · information theory</div>
+            </div>
+            <div class="c-new-dot" style="left:33%;top:28%;"></div>
+            <div class="c-new-dot" style="left:44%;top:30%;animation-delay:0.5s;"></div>
+
+            <!-- LOGOS & REPRESENTATION -->
+            <div class="c-node" style="left:65%;top:55%;">
+              <div class="c-node-ring" style="width:56px;height:56px;">
+                <span class="c-node-count">18</span>
+              </div>
+              <div class="c-node-label">Logos &amp; Representation</div>
+            </div>
+            <div class="c-new-dot" style="left:61%;top:49%;animation-delay:1s;"></div>
+
+            <!-- ALIGNMENT -->
+            <div class="c-node" style="left:72%;top:25%;">
+              <div class="c-node-ring" style="width:44px;height:44px;">
+                <span class="c-node-count">11</span>
+              </div>
+              <div class="c-node-label">Alignment</div>
+            </div>
+
+            <!-- INDUSTRIAL STRATEGY -->
+            <div class="c-node" style="left:25%;top:70%;">
+              <div class="c-node-ring" style="width:48px;height:48px;">
+                <span class="c-node-count">14</span>
+              </div>
+              <div class="c-node-label">Industrial Strategy</div>
+            </div>
+
+            <!-- DIALECTIC METHOD -->
+            <div class="c-node" style="left:50%;top:78%;">
+              <div class="c-node-ring" style="width:40px;height:40px;">
+                <span class="c-node-count">9</span>
+              </div>
+              <div class="c-node-label">Dialectical Method</div>
+            </div>
+
+            <!-- CHINA SEMI -->
+            <div class="c-node" style="left:15%;top:48%;">
+              <div class="c-node-ring" style="width:28px;height:28px;">
+                <span class="c-node-count" style="font-size:7px;">5</span>
+              </div>
+              <div class="c-node-label" style="font-size:10px;">China Semi</div>
+            </div>
+
+            <!-- Satellites -->
+            <div class="c-sat" style="left:88%;top:42%;"></div>
+            <div class="c-sat" style="left:82%;top:68%;"></div>
+            <div class="c-sat" style="left:12%;top:32%;"></div>
+            <div class="c-sat" style="left:42%;top:60%;"></div>
+
+            <!-- Your note markers (diamonds) -->
+            <div class="c-note-marker" style="left:35%;top:38%;"></div>
+            <div class="c-note-marker" style="left:62%;top:58%;"></div>
+          </div>
+        </div>
+
+        <div class="landscape-status">
+          <div class="status-item"><div class="status-dot" style="background:var(--ok);"></div> Chroma</div>
+          <div class="status-sep"></div>
+          <div class="status-item"><div class="status-dot" style="background:var(--ok);"></div> Embeddings</div>
+          <div class="status-sep"></div>
+          <div class="status-item">1,847 fragments</div>
+          <div class="status-sep"></div>
+          <div class="status-item">47 clusters</div>
+          <div class="status-sep"></div>
+          <div class="status-item">12 threads</div>
+          <div class="status-item" style="margin-left:auto;">
+            <div class="status-dot" style="background:var(--signal-red);"></div>
+            Syncing 3 items…
+          </div>
+        </div>
+      </div>
+
+      <!-- MARGIN -->
+      <div class="margin">
+        <div class="margin-header">
+          <div>
+            <div class="margin-cluster-name">Compression</div>
+            <div class="margin-cluster-meta">24 fragments · 3 sources · 2 notes</div>
+          </div>
+          <div class="margin-close">×</div>
+        </div>
+
+        <div class="margin-body">
+          <div class="frag is-yours">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--accent);"></div>
+              <span class="frag-src-text">Your note · 1h ago</span>
+            </div>
+            <div class="frag-content">These converge — compression forces representation, and representation is meaning. The Solomonoff thread connects here: shortest program ≈ deepest understanding.</div>
+          </div>
+
+          <div class="frag">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--signal-amber);"></div>
+              <span class="frag-src-text">Stratechery · 2h ago</span>
+            </div>
+            <div class="frag-content">Every company now faces a choice: integrate AI deeply or watch competitors pull ahead. But the "AI strategy tax" isn't just about cost — it's about organizational willingness to restructure around a technology that fundamentally changes how decisions are made.</div>
+            <div class="frag-tags">
+              <span class="frag-tag">ai-strategy</span>
+              <span class="frag-tag">compression</span>
+            </div>
+          </div>
+
+          <div class="frag">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--signal-blue);"></div>
+              <span class="frag-src-text">@eigenrobot · 3h ago</span>
+            </div>
+            <div class="frag-content">the thing about "compression is all you need" is that it's literally true in the kolmogorov sense. intelligence IS compression. the shortest description of the data that still predicts.</div>
+          </div>
+
+          <div class="frag">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--signal-purple);"></div>
+              <span class="frag-src-text">Readwise · 6h ago</span>
+            </div>
+            <div class="frag-content">Solomonoff induction assigns higher probability to hypotheses with shorter algorithmic descriptions. This is Occam's razor formalized — the universe rewards compression.</div>
+          </div>
+
+          <div class="frag is-yours">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--accent);"></div>
+              <span class="frag-src-text">Your note · 3d ago</span>
+            </div>
+            <div class="frag-content">If LLMs are compressors, then prompting is decompression. You give a seed and the model reconstructs the manifold around it. This explains why specificity matters — you're narrowing the decompression target.</div>
+          </div>
+
+          <div class="frag">
+            <div class="frag-src">
+              <div class="frag-src-dot" style="background:var(--signal-green);"></div>
+              <span class="frag-src-text">Obsidian · 5d ago</span>
+            </div>
+            <div class="frag-content">Shannon entropy and semantic content — are they the same axis? A string of random characters has maximum entropy but zero meaning. Meaning requires compression with fidelity.</div>
+          </div>
+        </div>
+
+        <div class="margin-compose">
+          <div class="compose-label">
+            <span class="compose-label-icon"></span>
+            Add to this cluster
+          </div>
+          <div class="compose-area">
+            The Stratechery piece is weaker on this point — it treats compression as metaphor, but eigenrobot and the Solomonoff highlights show it's literal<span class="cursor-line"></span>
+          </div>
+          <div class="compose-hint">
+            <span>Markdown supported</span>
+            <span><kbd>⌘ ↵</kbd> to save</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>The core interaction:</strong> Items stream in (left). The map shows where they landed (center). Amber dots pulse near clusters that received new fragments. You click a cluster — the margin panel (right) opens, showing every fragment alongside your own notes. Your commentary is a first-class fragment with a diamond marker on the map and an accent border in the list. <strong>Writing is saving.</strong> Hit ⌘↵ and your note gets embedded, clustered, and woven into the landscape.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     CONCEPT 2: Landscape alone (overview)
+     ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">02 — Overview State: Just the Landscape</div>
+  <div class="section-desc">
+    When nothing is selected, the stream is collapsed and the landscape fills the window. This is the default on open — your entire knowledge topology at a glance.
+  </div>
+
+  <div class="frame">
+    <div class="frame-title">
+      <div class="frame-dots"><span></span><span></span><span></span></div>
+      <span class="frame-title-text">Dialectic</span>
+    </div>
+    <div class="frame-body state-overview">
+      <div class="rail">
+        <div class="rail-logo">δ</div>
+        <div class="rail-icon active" title="Landscape">◎</div>
+        <div class="rail-icon has-badge" title="Stream">↓</div>
+        <div class="rail-icon" title="Search">⌕</div>
+        <div class="rail-spacer"></div>
+        <div class="rail-icon" title="Settings">⚙</div>
+      </div>
+
+      <div class="landscape">
+        <div class="landscape-toolbar">
+          <div class="search-box">
+            <span class="search-icon">⌕</span>
+            <span class="search-text">Search fragments, clusters…</span>
+            <span class="search-key">⌘K</span>
+          </div>
+          <div class="toolbar-btn">Re-cluster</div>
+          <div class="toolbar-btn" style="color:var(--accent);border-color:var(--accent-20);">↓ Stream</div>
+        </div>
+
+        <div class="landscape-canvas">
+          <svg style="position:absolute;inset:0;z-index:0;width:100%;height:100%;" preserveAspectRatio="none">
+            <line x1="32%" y1="38%" x2="55%" y2="50%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="32%" y1="38%" x2="60%" y2="25%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="32%" y1="38%" x2="18%" y2="65%" stroke="var(--accent-20)" stroke-width="1.5"/>
+            <line x1="55%" y1="50%" x2="42%" y2="72%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="60%" y1="25%" x2="78%" y2="38%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="18%" y1="65%" x2="10%" y2="42%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="55%" y1="50%" x2="75%" y2="62%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="42%" y1="72%" x2="65%" y2="80%" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="78%" y1="38%" x2="85%" y2="55%" stroke="var(--rule)" stroke-width="1"/>
+          </svg>
+
+          <div class="cluster-map">
+            <div class="c-node" style="left:32%;top:38%;">
+              <div class="c-node-ring" style="width:80px;height:80px;">
+                <span class="c-node-count">24</span>
+              </div>
+              <div class="c-node-label">Compression</div>
+              <div class="c-node-sub">epistemology · information theory</div>
+            </div>
+            <div class="c-new-dot" style="left:27%;top:32%;"></div>
+            <div class="c-new-dot" style="left:38%;top:33%;animation-delay:0.7s;"></div>
+            <div class="c-note-marker" style="left:29%;top:41%;"></div>
+
+            <div class="c-node" style="left:55%;top:50%;">
+              <div class="c-node-ring" style="width:64px;height:64px;">
+                <span class="c-node-count">18</span>
+              </div>
+              <div class="c-node-label">Logos &amp; Representation</div>
+            </div>
+            <div class="c-new-dot" style="left:51%;top:44%;animation-delay:1.2s;"></div>
+            <div class="c-note-marker" style="left:52%;top:53%;"></div>
+
+            <div class="c-node" style="left:60%;top:25%;">
+              <div class="c-node-ring" style="width:48px;height:48px;">
+                <span class="c-node-count">11</span>
+              </div>
+              <div class="c-node-label">Alignment</div>
+            </div>
+
+            <div class="c-node" style="left:18%;top:65%;">
+              <div class="c-node-ring" style="width:52px;height:52px;">
+                <span class="c-node-count">14</span>
+              </div>
+              <div class="c-node-label">Industrial Strategy</div>
+            </div>
+
+            <div class="c-node" style="left:42%;top:72%;">
+              <div class="c-node-ring" style="width:44px;height:44px;">
+                <span class="c-node-count">9</span>
+              </div>
+              <div class="c-node-label">Dialectical Method</div>
+            </div>
+
+            <div class="c-node" style="left:75%;top:62%;">
+              <div class="c-node-ring" style="width:36px;height:36px;">
+                <span class="c-node-count" style="font-size:8px;">7</span>
+              </div>
+              <div class="c-node-label" style="font-size:10px;">Retail Media</div>
+            </div>
+
+            <div class="c-node" style="left:10%;top:42%;">
+              <div class="c-node-ring" style="width:28px;height:28px;">
+                <span class="c-node-count" style="font-size:7px;">5</span>
+              </div>
+              <div class="c-node-label" style="font-size:10px;">China Semi</div>
+            </div>
+
+            <div class="c-node" style="left:78%;top:38%;">
+              <div class="c-node-ring" style="width:32px;height:32px;">
+                <span class="c-node-count" style="font-size:8px;">6</span>
+              </div>
+              <div class="c-node-label" style="font-size:10px;">Systems Performance</div>
+            </div>
+
+            <div class="c-node" style="left:65%;top:80%;">
+              <div class="c-node-ring" style="width:36px;height:36px;">
+                <span class="c-node-count" style="font-size:8px;">8</span>
+              </div>
+              <div class="c-node-label" style="font-size:10px;">Orthodox Theology</div>
+            </div>
+
+            <div class="c-sat" style="left:85%;top:55%;"></div>
+            <div class="c-sat" style="left:90%;top:30%;"></div>
+            <div class="c-sat" style="left:5%;top:55%;"></div>
+            <div class="c-sat" style="left:48%;top:18%;"></div>
+            <div class="c-sat" style="left:25%;top:22%;"></div>
+            <div class="c-sat" style="left:88%;top:75%;"></div>
+
+            <div class="c-note-marker" style="left:40%;top:70%;"></div>
+            <div class="c-note-marker" style="left:17%;top:62%;"></div>
+            <div class="c-note-marker" style="left:63%;top:78%;"></div>
+          </div>
+        </div>
+
+        <div class="landscape-status">
+          <div class="status-item"><div class="status-dot" style="background:var(--ok);"></div> Chroma</div>
+          <div class="status-sep"></div>
+          <div class="status-item"><div class="status-dot" style="background:var(--ok);"></div> Embeddings</div>
+          <div class="status-sep"></div>
+          <div class="status-item">1,847 fragments</div>
+          <div class="status-sep"></div>
+          <div class="status-item">47 clusters · 12 threads</div>
+          <div class="status-item" style="margin-left:auto;">7 new since last visit</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>This is the default state.</strong> You open Dialectic and see the whole landscape. Cluster size = fragment count. Position = semantic similarity (UMAP projection). Amber dots = new items since last visit. Diamond markers = your notes. <strong>Click a cluster → stream + margin open.</strong> Click the map background → they close.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     CONCEPT 3: Thread view
+     ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">03 — Thread Highlight: Connections Light Up</div>
+  <div class="section-desc">
+    Threads are cross-cluster connections. When you search or select a thread, the relevant clusters glow and the rest dims. No separate screen — threads are a lens.
+  </div>
+
+  <div class="frame">
+    <div class="frame-title">
+      <div class="frame-dots"><span></span><span></span><span></span></div>
+      <span class="frame-title-text">Dialectic — Thread: "Compression as Epistemology"</span>
+    </div>
+    <div class="frame-body state-overview">
+      <div class="rail">
+        <div class="rail-logo">δ</div>
+        <div class="rail-icon" title="Landscape">◎</div>
+        <div class="rail-icon" title="Stream">↓</div>
+        <div class="rail-icon active" title="Search">⌕</div>
+        <div class="rail-spacer"></div>
+        <div class="rail-icon" title="Settings">⚙</div>
+      </div>
+
+      <div class="landscape">
+        <div class="landscape-toolbar">
+          <div class="search-box is-active">
+            <span class="search-icon" style="color:var(--accent);">⌕</span>
+            <span style="font-family:'Lora',serif;font-size:10.5px;color:var(--primary);">compression epistemology</span>
+            <span class="search-key">esc</span>
+          </div>
+          <div class="toolbar-btn" style="background:var(--accent-bg);color:var(--accent);border-color:var(--accent-20);">3 threads</div>
+        </div>
+
+        <div class="landscape-canvas">
+          <svg style="position:absolute;inset:0;z-index:0;width:100%;height:100%;" preserveAspectRatio="none">
+            <!-- Dim background edges -->
+            <line x1="60%" y1="25%" x2="78%" y2="38%" stroke="var(--rule)" stroke-width="1" opacity="0.3"/>
+            <line x1="18%" y1="65%" x2="10%" y2="42%" stroke="var(--rule)" stroke-width="1" opacity="0.3"/>
+            <line x1="42%" y1="72%" x2="65%" y2="80%" stroke="var(--rule)" stroke-width="1" opacity="0.3"/>
+
+            <!-- HIGHLIGHTED THREAD -->
+            <line x1="32%" y1="38%" x2="55%" y2="50%" stroke="var(--accent)" stroke-width="2.5" opacity="0.5"/>
+            <line x1="55%" y1="50%" x2="42%" y2="72%" stroke="var(--accent)" stroke-width="2" opacity="0.35"/>
+            <line x1="32%" y1="38%" x2="18%" y2="65%" stroke="var(--accent)" stroke-width="1.5" opacity="0.25"/>
+            <!-- Glow -->
+            <line x1="32%" y1="38%" x2="55%" y2="50%" stroke="var(--accent)" stroke-width="8" opacity="0.06"/>
+            <line x1="55%" y1="50%" x2="42%" y2="72%" stroke="var(--accent)" stroke-width="6" opacity="0.04"/>
+          </svg>
+
+          <div class="cluster-map">
+            <div class="c-node is-active" style="left:32%;top:38%;">
+              <div class="c-node-ring" style="width:80px;height:80px;">
+                <span class="c-node-count">24</span>
+              </div>
+              <div class="c-node-label">Compression</div>
+            </div>
+
+            <div class="c-node is-active" style="left:55%;top:50%;">
+              <div class="c-node-ring" style="width:64px;height:64px;">
+                <span class="c-node-count">18</span>
+              </div>
+              <div class="c-node-label">Logos &amp; Representation</div>
+            </div>
+
+            <div class="c-node is-active" style="left:42%;top:72%;">
+              <div class="c-node-ring" style="width:44px;height:44px;">
+                <span class="c-node-count">9</span>
+              </div>
+              <div class="c-node-label">Dialectical Method</div>
+            </div>
+
+            <!-- Dimmed -->
+            <div class="c-node" style="left:60%;top:25%;opacity:0.25;">
+              <div class="c-node-ring" style="width:48px;height:48px;"><span class="c-node-count">11</span></div>
+              <div class="c-node-label">Alignment</div>
+            </div>
+            <div class="c-node" style="left:18%;top:65%;opacity:0.25;">
+              <div class="c-node-ring" style="width:52px;height:52px;"><span class="c-node-count">14</span></div>
+              <div class="c-node-label">Industrial Strategy</div>
+            </div>
+            <div class="c-node" style="left:10%;top:42%;opacity:0.25;">
+              <div class="c-node-ring" style="width:28px;height:28px;"></div>
+              <div class="c-node-label" style="font-size:10px;">China Semi</div>
+            </div>
+            <div class="c-node" style="left:78%;top:38%;opacity:0.25;">
+              <div class="c-node-ring" style="width:32px;height:32px;"></div>
+              <div class="c-node-label" style="font-size:10px;">Systems Performance</div>
+            </div>
+            <div class="c-node" style="left:65%;top:80%;opacity:0.25;">
+              <div class="c-node-ring" style="width:36px;height:36px;"></div>
+              <div class="c-node-label" style="font-size:10px;">Orthodox Theology</div>
+            </div>
+
+            <!-- Thread label -->
+            <div style="position:absolute;left:40%;top:50%;transform:translate(-50%,-50%);background:var(--accent);color:#fff;font-family:'Cormorant Garamond',serif;font-size:11px;font-weight:500;padding:3px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(91,141,239,0.3);">
+              Compression as Epistemology
+            </div>
+          </div>
+        </div>
+
+        <div class="landscape-status">
+          <div class="status-item" style="color:var(--accent);">Thread: Compression as Epistemology</div>
+          <div class="status-sep"></div>
+          <div class="status-item">3 clusters · 51 fragments · 87% similarity</div>
+          <div class="status-item" style="margin-left:auto;">
+            <kbd style="font-family:'Cousine',monospace;font-size:8px;background:var(--bg);border:1px solid var(--border);padding:0 4px;border-radius:2px;">esc</kbd> to clear
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <p><strong>Threads aren't a separate screen — they're a lens on the same landscape.</strong> When you search or select a thread, the relevant clusters glow and the rest dims. The thread label floats on the strongest edge. Press <strong>esc</strong> to restore the full view. This replaces the Thread Explorer entirely.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     DESIGN DECISIONS
+     ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Key Design Decisions</div>
+
+  <div class="ann-grid">
+    <div class="ann-col">
+      <h4>Map as Home</h4>
+      <p>The cluster landscape is always the center of gravity. Every screen is a mode of the landscape, not a navigation away from it. Stream is a panel you open. Search is a filter you apply. Threads are a highlighting lens. You never leave the map.</p>
+    </div>
+    <div class="ann-col">
+      <h4>Notes are Fragments</h4>
+      <p>Your commentary gets embedded and clustered the same way ingested content does. Over time, your notes become the densest points in the graph — they're the synthesis that connects everything else. Diamond markers on the map. Accent borders in lists.</p>
+    </div>
+    <div class="ann-col">
+      <h4>No Modes, Just Panels</h4>
+      <p>Stream, margin, and search are panels that slide in from the sides. The landscape adjusts. There's no Dashboard, no Cluster Explorer, no Thread Explorer — there's just the landscape with different panels visible.</p>
+    </div>
+  </div>
+
+  <div class="annotation" style="margin-top:12px;border-left-color:var(--accent);">
+    <p><strong>What this kills from the requirements doc:</strong> Dashboard (replaced by the landscape), Terminal (never belonged), Cluster Explorer grid (the map IS the explorer), Thread Explorer list (threads are a map highlight). <strong>What survives:</strong> Settings, Search (as a map filter), Fragment Detail (margin panel expansion), Source Status (folded into Settings). The nav rail shrinks from 5 items to 3: <strong>Landscape, Stream, Settings.</strong></p>
+  </div>
+</div>
+
+</body>
+</html>

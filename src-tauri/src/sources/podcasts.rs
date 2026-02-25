@@ -1,6 +1,8 @@
-use crate::fragment::{Fragment, SourceType};
+use crate::chroma::client::{get_client, ChromaError};
+use crate::chroma::collections::{get_collection_id, COLLECTION_PODCASTS};
+use crate::fragment::{self, Fragment, SourceType};
+use crate::grpc_client::{get_grpc_client, GrpcError};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -17,6 +19,10 @@ pub enum SourceError {
     DirectoryNotFound(String),
     #[error("Invalid data: {0}")]
     InvalidData(String),
+    #[error("Chroma error: {0}")]
+    Chroma(#[from] ChromaError),
+    #[error("gRPC error: {0}")]
+    Grpc(#[from] GrpcError),
 }
 
 impl Serialize for SourceError {
@@ -46,12 +52,6 @@ pub struct PodcastImportResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-/// Maximum characters per chunk for transcript splitting.
-const MAX_CHUNK_CHARS: usize = 1500;
-
-/// Rough token-per-character ratio for English text.
-const CHARS_PER_TOKEN: f64 = 4.0;
-
 /// Supported transcript file extensions.
 const SUPPORTED_EXTENSIONS: &[&str] = &["txt", "srt", "vtt"];
 
@@ -59,17 +59,7 @@ const SUPPORTED_EXTENSIONS: &[&str] = &["txt", "srt", "vtt"];
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Computes the SHA-256 hex digest of a string.
-fn content_hash(text: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
-
-/// Estimates the token count from character length.
-fn estimate_tokens(text: &str) -> usize {
-    (text.len() as f64 / CHARS_PER_TOKEN).ceil() as usize
-}
+// Use shared helpers from fragment module.
 
 // ---------------------------------------------------------------------------
 // Transcript format parsers
@@ -191,82 +181,8 @@ fn parse_transcript(path: &Path, content: &str) -> String {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Chunking
-// ---------------------------------------------------------------------------
-
-/// Splits long text into chunks of approximately `MAX_CHUNK_CHARS`, breaking
-/// at paragraph or sentence boundaries when possible.
-fn chunk_plain_text(text: &str) -> Vec<String> {
-    if text.len() <= MAX_CHUNK_CHARS {
-        return vec![text.to_string()];
-    }
-
-    let mut chunks = Vec::new();
-    let mut current = String::new();
-
-    // Try splitting on double-newline first (paragraph boundaries).
-    let paragraphs: Vec<&str> = text.split("\n\n").collect();
-
-    for paragraph in &paragraphs {
-        if !current.is_empty() && current.len() + paragraph.len() + 2 > MAX_CHUNK_CHARS {
-            chunks.push(current.trim().to_string());
-            current = String::new();
-        }
-
-        // If a single paragraph exceeds the limit, split by sentences.
-        if paragraph.len() > MAX_CHUNK_CHARS {
-            for sentence in split_sentences(paragraph) {
-                if !current.is_empty() && current.len() + sentence.len() + 1 > MAX_CHUNK_CHARS {
-                    chunks.push(current.trim().to_string());
-                    current = String::new();
-                }
-                if !current.is_empty() {
-                    current.push(' ');
-                }
-                current.push_str(&sentence);
-            }
-        } else {
-            if !current.is_empty() {
-                current.push_str("\n\n");
-            }
-            current.push_str(paragraph);
-        }
-    }
-
-    if !current.trim().is_empty() {
-        chunks.push(current.trim().to_string());
-    }
-
-    chunks
-}
-
-/// Naive sentence splitter: split on `. `, `? `, `! ` while keeping the
-/// punctuation attached to the preceding text.
-fn split_sentences(text: &str) -> Vec<String> {
-    let mut sentences = Vec::new();
-    let mut start = 0;
-    let bytes = text.as_bytes();
-
-    for i in 0..bytes.len().saturating_sub(1) {
-        let is_end = matches!(bytes[i], b'.' | b'?' | b'!')
-            && bytes.get(i + 1) == Some(&b' ');
-
-        if is_end {
-            sentences.push(text[start..=i].trim().to_string());
-            start = i + 2;
-        }
-    }
-
-    if start < text.len() {
-        let remainder = text[start..].trim();
-        if !remainder.is_empty() {
-            sentences.push(remainder.to_string());
-        }
-    }
-
-    sentences
-}
+// Use shared chunker module.
+use crate::chunker;
 
 // ---------------------------------------------------------------------------
 // File discovery
@@ -317,8 +233,8 @@ fn process_transcript_file(path: &Path) -> Result<Vec<Fragment>, SourceError> {
         return Ok(Vec::new());
     }
 
-    let chunks = chunk_plain_text(&clean_text);
-    let source_path = path.to_string_lossy().to_string();
+    let source_path_str = path.to_string_lossy().to_string();
+    let chunked = chunker::chunk_plain_text(&clean_text, &source_path_str);
     let modified_at = path
         .metadata()
         .and_then(|m| m.modified())
@@ -334,24 +250,24 @@ fn process_transcript_file(path: &Path) -> Result<Vec<Fragment>, SourceError> {
         .and_then(|s| s.to_str())
         .unwrap_or("unknown");
 
-    let fragments: Vec<Fragment> = chunks
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("txt");
+
+    let fragments: Vec<Fragment> = chunked
         .into_iter()
         .enumerate()
-        .map(|(idx, chunk_text)| {
-            let hash = content_hash(&chunk_text);
-            let token_count = estimate_tokens(&chunk_text);
+        .map(|(idx, chunk)| {
+            let hash = fragment::content_hash(&chunk.content);
+            let token_count = fragment::estimate_tokens(&chunk.content);
             let id = ulid::Ulid::new().to_string();
-
-            let ext = path
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("txt");
 
             Fragment {
                 id,
-                content: chunk_text,
+                content: chunk.content,
                 source_type: SourceType::Podcast,
-                source_path: source_path.clone(),
+                source_path: source_path_str.clone(),
                 chunk_index: idx,
                 heading_path: Vec::new(),
                 tags: Vec::new(),
@@ -433,12 +349,35 @@ fn import_podcasts(directory: &str) -> Result<(Vec<Fragment>, PodcastImportResul
 pub async fn source_podcasts_import(
     directory: String,
 ) -> Result<PodcastImportResult, SourceError> {
-    let (_fragments, result) = tokio::task::spawn_blocking(move || {
+    let (fragments, result) = tokio::task::spawn_blocking(move || {
         import_podcasts(&directory)
     })
     .await
     .map_err(|e| SourceError::InvalidData(format!("Task join error: {e}")))?
     ?;
+
+    // Embed and store fragments in Chroma.
+    if !fragments.is_empty() {
+        let grpc = get_grpc_client()?;
+        let client = get_client();
+        let coll_id = get_collection_id(COLLECTION_PODCASTS).await?;
+
+        let texts: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let embeddings = grpc.embed_batch(texts).await?;
+
+        let ids: Vec<String> = fragments.iter().map(|f| f.id.clone()).collect();
+        let documents: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let metadatas: Vec<serde_json::Value> = fragments
+            .iter()
+            .map(fragment::fragment_to_chroma_metadata)
+            .collect();
+
+        client
+            .add(&coll_id, ids, Some(embeddings), Some(documents), Some(metadatas))
+            .await?;
+
+        tracing::info!("Stored {} podcast fragments in Chroma", fragments.len());
+    }
 
     Ok(result)
 }
@@ -508,20 +447,6 @@ Second cue.
         let txt = "  Just plain text with some whitespace.  \n\n";
         let result = parse_txt(txt);
         assert_eq!(result, "Just plain text with some whitespace.");
-    }
-
-    #[test]
-    fn test_chunk_plain_text_short() {
-        let text = "Short transcript.";
-        let chunks = chunk_plain_text(text);
-        assert_eq!(chunks.len(), 1);
-    }
-
-    #[test]
-    fn test_chunk_plain_text_long() {
-        let text = "word ".repeat(500); // ~2500 chars
-        let chunks = chunk_plain_text(&text);
-        assert!(chunks.len() >= 2);
     }
 
     #[test]

@@ -63,7 +63,7 @@ scrapbin/
 ├── src-tauri/              # Rust backend
 │   ├── src/
 │   │   ├── main.rs         # Tauri commands, plugin registration
-│   │   ├── config.rs       # App config (~/.dialectic-rl/)
+│   │   ├── config.rs       # App config (~/.scrapbin/)
 │   │   ├── watcher.rs      # File system watcher (300ms debounce)
 │   │   ├── markdown.rs     # Markdown parser (frontmatter, headings, links, tags)
 │   │   ├── chunker.rs      # Hierarchical chunking (512 token max, 50 overlap)
@@ -92,11 +92,14 @@ scrapbin/
 │   ├── embeddings.py
 │   ├── chroma_client.py
 │   └── types.py
-├── src/                    # React frontend (design pending)
+├── src/                    # React frontend
 │   ├── App.tsx
 │   └── main.tsx
-├── docs/
-│   └── UI_REQUIREMENTS.md  # Figma design spec
+├── design mockups/         # UI design reference (source of truth)
+│   ├── UI_REQUIREMENTS.md  # Complete spec: states, components, tokens, data contracts
+│   ├── dialectic-concept-tidepool.html  # Reference mockup (open in browser to view)
+│   ├── scrapbin-color-v4.html           # Color study (Tidepool chosen, for reference only)
+│   └── figma-frames/       # 2x PNG exports of each component/state
 ├── package.json
 ├── index.html
 ├── vite.config.ts
@@ -128,3 +131,54 @@ scrapbin/
 | `podcasts` | Podcast transcript chunks |
 | `clusters` | Cluster metadata (label, members, centroid) |
 | `threads` | Thread metadata (connections, labels) |
+
+## Design Reference
+
+The frontend design spec lives in `design mockups/`. **Read these before writing any frontend code.**
+
+### Source of Truth (in priority order)
+
+1. **`design mockups/UI_REQUIREMENTS.md`** — The authoritative spec. Contains all design tokens (colors, typography, spacing), component definitions, state transitions, data contracts, and interaction inventory. When in doubt, this document wins.
+
+2. **`design mockups/dialectic-concept-tidepool.html`** — The visual reference mockup. Open in a browser to see the rendered UI. The CSS in this file contains the exact values for every token, component, and layout. Cross-reference against `UI_REQUIREMENTS.md` if they diverge (the requirements doc is canonical).
+
+3. **`design mockups/figma-frames/`** — 2x PNG screenshots of each UI state and component, exported from the HTML mockup. Use these for quick visual comparison.
+
+### Design System: Tidepool
+
+Palette: Paper whites, black ink, ocean cerulean accent, lifted signals. All tokens are defined as CSS custom properties in the mockup HTML and as a table in `UI_REQUIREMENTS.md`. Key values:
+
+- Accent: `#5b8def` (cerulean)
+- Primary: `#18181b`, Ink: `#09090b`
+- Backgrounds: `#ffffff` → `#fafafa` → `#f4f4f5`
+- Fonts: Cormorant Garamond (display), Libre Baskerville (titles), Lora (body), Cousine (mono), Archivo Narrow (UI system)
+
+### Three UI States
+
+The app has one surface (the Landscape) with three states — not separate screens:
+
+| State | Panels Visible | Reference Frame |
+|---|---|---|
+| **Overview** | Rail + Landscape (full width) | `01-browsing-full.png` section 02 |
+| **Browsing** | Rail + Stream + Landscape + Margin | `01-browsing-full.png` section 01 |
+| **Threaded** | Rail + Landscape (highlighted subset) | `03-threaded-full.png` |
+
+### Visual Verification
+
+When implementing a component, compare against the corresponding PNG in `figma-frames/`:
+
+| Component | Reference File |
+|---|---|
+| Rail | `04-component-rail.png` |
+| Stream Panel | `05-component-stream.png` |
+| Margin Panel | `06-component-margin.png` |
+| Toolbar (resting) | `07-component-toolbar.png` |
+| Toolbar (active search) | `10-component-toolbar-active.png` |
+| Status Bar | `08-component-statusbar.png` |
+| Status Bar (threaded) | `11-component-statusbar-threaded.png` |
+| Landscape Canvas | `09-component-landscape-canvas.png` |
+| Your-note fragment | `12-detail-your-note.png` |
+| Regular fragment | `13-detail-regular-fragment.png` |
+| Compose area | `14-detail-compose-area.png` |
+| Stream item (selected) | `15-detail-stream-item-selected.png` |
+| Stream item (new) | `16-detail-stream-item-new.png` |

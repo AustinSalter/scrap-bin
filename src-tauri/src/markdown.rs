@@ -237,7 +237,7 @@ pub fn parse_markdown(content: &str) -> ParsedNote {
     let tags = extract_tags(&body);
 
     let word_count = body.split_whitespace().count();
-    let estimated_tokens = (word_count as f64 * 1.3).ceil() as usize;
+    let estimated_tokens = (body.len() as f64 / 4.0).ceil() as usize;
 
     ParsedNote {
         frontmatter,
@@ -312,6 +312,6 @@ mod tests {
         let input = "one two three four five";
         let note = parse_markdown(input);
         assert_eq!(note.word_count, 5);
-        assert_eq!(note.estimated_tokens, 7); // ceil(5 * 1.3) = 7
+        assert_eq!(note.estimated_tokens, 6); // ceil(23 / 4.0) = 6
     }
 }

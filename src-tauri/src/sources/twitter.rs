@@ -1,6 +1,8 @@
-use crate::fragment::{Fragment, SourceType};
+use crate::chroma::client::{get_client, ChromaError};
+use crate::chroma::collections::{get_collection_id, COLLECTION_TWITTER};
+use crate::fragment::{self, Fragment, SourceType};
+use crate::grpc_client::{get_grpc_client, GrpcError};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -15,6 +17,10 @@ pub enum SourceError {
     Json(#[from] serde_json::Error),
     #[error("Invalid data: {0}")]
     InvalidData(String),
+    #[error("Chroma error: {0}")]
+    Chroma(#[from] ChromaError),
+    #[error("gRPC error: {0}")]
+    Grpc(#[from] GrpcError),
 }
 
 impl Serialize for SourceError {
@@ -67,102 +73,11 @@ pub struct TwitterImportResult {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/// Maximum characters per chunk for plain-text splitting.
-const MAX_CHUNK_CHARS: usize = 1500;
-
-/// Rough token-per-character ratio for English text.
-const CHARS_PER_TOKEN: f64 = 4.0;
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Computes the SHA-256 hex digest of a string.
-fn content_hash(text: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
-
-/// Estimates the token count from character length.
-fn estimate_tokens(text: &str) -> usize {
-    (text.len() as f64 / CHARS_PER_TOKEN).ceil() as usize
-}
-
-/// Splits long text into chunks of approximately `MAX_CHUNK_CHARS`, breaking
-/// at paragraph or sentence boundaries when possible.
-fn chunk_plain_text(text: &str) -> Vec<String> {
-    if text.len() <= MAX_CHUNK_CHARS {
-        return vec![text.to_string()];
-    }
-
-    let mut chunks = Vec::new();
-    let mut current = String::new();
-
-    for paragraph in text.split("\n\n") {
-        // If adding this paragraph would exceed the limit, flush current.
-        if !current.is_empty() && current.len() + paragraph.len() + 2 > MAX_CHUNK_CHARS {
-            chunks.push(current.trim().to_string());
-            current = String::new();
-        }
-
-        // If a single paragraph is itself longer than the limit, split by sentences.
-        if paragraph.len() > MAX_CHUNK_CHARS {
-            for sentence in split_sentences(paragraph) {
-                if !current.is_empty() && current.len() + sentence.len() + 1 > MAX_CHUNK_CHARS {
-                    chunks.push(current.trim().to_string());
-                    current = String::new();
-                }
-                if !current.is_empty() {
-                    current.push(' ');
-                }
-                current.push_str(&sentence);
-            }
-        } else {
-            if !current.is_empty() {
-                current.push_str("\n\n");
-            }
-            current.push_str(paragraph);
-        }
-    }
-
-    if !current.trim().is_empty() {
-        chunks.push(current.trim().to_string());
-    }
-
-    chunks
-}
-
-/// Naive sentence splitter: split on `. `, `? `, `! ` while keeping the
-/// punctuation attached to the preceding text.
-fn split_sentences(text: &str) -> Vec<String> {
-    let mut sentences = Vec::new();
-    let mut start = 0;
-    let bytes = text.as_bytes();
-
-    for i in 0..bytes.len().saturating_sub(1) {
-        let is_end = matches!(bytes[i], b'.' | b'?' | b'!')
-            && bytes.get(i + 1) == Some(&b' ');
-
-        if is_end {
-            sentences.push(text[start..=i].trim().to_string());
-            start = i + 2; // skip the space after punctuation
-        }
-    }
-
-    // Remainder.
-    if start < text.len() {
-        let remainder = text[start..].trim();
-        if !remainder.is_empty() {
-            sentences.push(remainder.to_string());
-        }
-    }
-
-    sentences
-}
+// Use shared helpers from fragment and chunker modules.
+use crate::chunker;
 
 /// Converts a single Twitter bookmark into one or more `Fragment`s.
 fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
@@ -173,20 +88,20 @@ fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
         .and_then(|nt| nt.text.as_deref())
         .unwrap_or(&bookmark.text);
 
-    let chunks = chunk_plain_text(full_text);
+    let source_path_str = format!("twitter://bookmark/{}", bookmark.id);
+    let chunked = chunker::chunk_plain_text(full_text, &source_path_str);
+    let chunks: Vec<String> = chunked.iter().map(|c| c.content.clone()).collect();
     let modified_at = bookmark
         .created_at
         .clone()
         .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
 
-    let source_path = format!("twitter://bookmark/{}", bookmark.id);
-
     chunks
         .into_iter()
         .enumerate()
         .map(|(idx, chunk_text)| {
-            let hash = content_hash(&chunk_text);
-            let token_count = estimate_tokens(&chunk_text);
+            let hash = fragment::content_hash(&chunk_text);
+            let token_count = fragment::estimate_tokens(&chunk_text);
             let id = ulid::Ulid::new().to_string();
 
             let mut metadata = serde_json::json!({
@@ -200,7 +115,7 @@ fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
                 id,
                 content: chunk_text,
                 source_type: SourceType::Twitter,
-                source_path: source_path.clone(),
+                source_path: source_path_str.clone(),
                 chunk_index: idx,
                 heading_path: Vec::new(),
                 tags: Vec::new(),
@@ -296,16 +211,47 @@ fn import_bookmarks(
 /// Actual embedding and Chroma storage happen downstream in the pipeline.
 #[tauri::command]
 pub async fn source_twitter_import(path: String) -> Result<TwitterImportResult, SourceError> {
-    // For now we pass an empty set; the caller should wire up Chroma dedup
-    // once the pipeline is integrated.
-    let existing_ids = std::collections::HashSet::new();
+    // Query Chroma for existing tweet IDs to deduplicate.
+    let client = get_client();
+    let coll_id = get_collection_id(COLLECTION_TWITTER).await?;
+    let existing_result = client.get(&coll_id, None, None, Some(vec!["metadatas".to_string()])).await;
+    let mut existing_ids = std::collections::HashSet::new();
+    if let Ok(result) = existing_result {
+        if let Some(metas) = &result.metadatas {
+            for meta in metas.iter().flatten() {
+                if let Some(tid) = meta.get("tweet_id").and_then(|v| v.as_str()) {
+                    existing_ids.insert(tid.to_string());
+                }
+            }
+        }
+    }
 
-    let (_fragments, result) = tokio::task::spawn_blocking(move || {
+    let (fragments, result) = tokio::task::spawn_blocking(move || {
         import_bookmarks(&path, &existing_ids)
     })
     .await
     .map_err(|e| SourceError::InvalidData(format!("Task join error: {e}")))?
     ?;
+
+    // Embed and store fragments in Chroma.
+    if !fragments.is_empty() {
+        let grpc = get_grpc_client()?;
+        let texts: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let embeddings = grpc.embed_batch(texts).await?;
+
+        let ids: Vec<String> = fragments.iter().map(|f| f.id.clone()).collect();
+        let documents: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let metadatas: Vec<serde_json::Value> = fragments
+            .iter()
+            .map(fragment::fragment_to_chroma_metadata)
+            .collect();
+
+        client
+            .add(&coll_id, ids, Some(embeddings), Some(documents), Some(metadatas))
+            .await?;
+
+        tracing::info!("Stored {} Twitter fragments in Chroma", fragments.len());
+    }
 
     Ok(result)
 }
@@ -317,38 +263,6 @@ pub async fn source_twitter_import(path: String) -> Result<TwitterImportResult, 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_chunk_plain_text_short() {
-        let text = "Hello, world!";
-        let chunks = chunk_plain_text(text);
-        assert_eq!(chunks.len(), 1);
-        assert_eq!(chunks[0], "Hello, world!");
-    }
-
-    #[test]
-    fn test_chunk_plain_text_long() {
-        // Build a string that exceeds MAX_CHUNK_CHARS.
-        let paragraph = "word ".repeat(400); // ~2000 chars
-        let text = format!("{}\n\n{}", paragraph.trim(), paragraph.trim());
-        let chunks = chunk_plain_text(&text);
-        assert!(chunks.len() >= 2);
-        for chunk in &chunks {
-            // Each chunk should be reasonably bounded.
-            assert!(chunk.len() <= MAX_CHUNK_CHARS + 200); // some slack for sentence boundaries
-        }
-    }
-
-    #[test]
-    fn test_split_sentences() {
-        let text = "First sentence. Second sentence? Third sentence! End";
-        let sentences = split_sentences(text);
-        assert_eq!(sentences.len(), 4);
-        assert_eq!(sentences[0], "First sentence.");
-        assert_eq!(sentences[1], "Second sentence?");
-        assert_eq!(sentences[2], "Third sentence!");
-        assert_eq!(sentences[3], "End");
-    }
 
     #[test]
     fn test_bookmark_to_fragments_short_tweet() {

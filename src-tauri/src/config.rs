@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use thiserror::Error;
 
-const APP_DIR_NAME: &str = ".dialectic-rl";
+const APP_DIR_NAME: &str = ".scrapbin";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -43,14 +43,14 @@ impl Default for AppConfig {
     }
 }
 
-/// Returns `~/.dialectic-rl/`
+/// Returns `~/.scrapbin/`
 pub fn app_data_dir() -> Result<PathBuf, ConfigError> {
     let home = dirs::home_dir().ok_or(ConfigError::NoHomeDir)?;
     Ok(home.join(APP_DIR_NAME))
 }
 
 /// Ensures the directory structure exists:
-/// ~/.dialectic-rl/
+/// ~/.scrapbin/
 ///   chroma/        — Chroma persistence
 ///   config.json    — app configuration
 ///   index_state.json — incremental indexing state
@@ -102,7 +102,12 @@ pub fn save_config(config: &AppConfig) -> Result<(), ConfigError> {
 
 #[tauri::command]
 pub fn config_get() -> Result<AppConfig, ConfigError> {
-    load_config()
+    let mut config = load_config()?;
+    // Redact the API key for frontend display — only expose whether it is set.
+    if config.readwise_api_key.is_some() {
+        config.readwise_api_key = Some("***".to_string());
+    }
+    Ok(config)
 }
 
 #[tauri::command]

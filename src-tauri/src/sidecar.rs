@@ -329,65 +329,32 @@ fn is_python_model_ready() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Chroma helpers
+// Chroma helpers — delegates to chroma::sidecar which tracks the child process
 // ---------------------------------------------------------------------------
 
-/// Start the Chroma DB sidecar process and wait for the heartbeat endpoint.
+/// Start the Chroma DB sidecar process via the proper ChromaSidecar manager.
 fn start_chroma(port: u16) -> Result<(), SidecarError> {
     let persist_dir = config::chroma_persist_dir()
         .map_err(|e| SidecarError::Config(e.to_string()))?;
 
-    // Chroma is expected to be available as `chroma` CLI or running externally.
-    // We start it via `chroma run` with the configured persist directory.
-    tracing::info!(
-        "Starting Chroma on port {port} with persist dir: {}",
-        persist_dir.display()
-    );
-
-    let child_result = Command::new("chroma")
-        .arg("run")
-        .arg("--port")
-        .arg(port.to_string())
-        .arg("--path")
-        .arg(persist_dir.to_string_lossy().as_ref())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn();
-
-    match child_result {
-        Ok(_child) => {
-            // Give Chroma a moment to bind the port, then verify.
-            std::thread::sleep(Duration::from_secs(2));
-
-            let client = chroma::client::get_client_with_port(port);
-            let healthy = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(async { client.heartbeat().await })
-            });
-
-            match healthy {
-                Ok(_) => {
-                    tracing::info!("Chroma is running on port {port}");
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "Chroma started but heartbeat failed: {e}. \
-                         It may still be initializing — proceeding."
-                    );
-                    Ok(())
-                }
-            }
+    match chroma::sidecar::start_chroma(persist_dir, port) {
+        Ok(()) => {
+            tracing::info!("Chroma is running on port {port}");
+            Ok(())
         }
-        Err(e) => {
+        Err(chroma::sidecar::SidecarError::AlreadyRunning) => {
+            tracing::debug!("Chroma already running on port {port}");
+            Ok(())
+        }
+        Err(chroma::sidecar::SidecarError::BinaryNotFound) => {
             // If the `chroma` CLI is not found, assume Chroma is managed
             // externally (e.g., already running or started via Docker).
             tracing::warn!(
-                "Could not spawn Chroma process: {e}. \
-                 Assuming Chroma is managed externally."
+                "Chroma binary not found. Assuming Chroma is managed externally."
             );
             Ok(())
         }
+        Err(e) => Err(SidecarError::Chroma(e.to_string())),
     }
 }
 
@@ -458,8 +425,7 @@ pub fn stop_all() -> Result<(), SidecarError> {
     stop_python()?;
 
     // 2. Stop Chroma (best-effort — it may be externally managed).
-    // We don't track the Chroma child process directly in all cases, so we
-    // reset the client to force re-initialization on next start.
+    let _ = chroma::sidecar::stop_chroma();
     chroma::client::reset_client();
 
     tracing::info!("All sidecars stopped");
@@ -486,17 +452,25 @@ fn build_status(chroma_port: u16, python_port: u16) -> SidecarStatus {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn sidecar_start_all() -> Result<SidecarStatus, SidecarError> {
-    start_all()
+pub async fn sidecar_start_all() -> Result<SidecarStatus, SidecarError> {
+    tokio::task::spawn_blocking(start_all)
+        .await
+        .map_err(|e| SidecarError::Io(e.to_string()))?
 }
 
 #[tauri::command]
-pub fn sidecar_stop_all() -> Result<(), SidecarError> {
-    stop_all()
+pub async fn sidecar_stop_all() -> Result<(), SidecarError> {
+    tokio::task::spawn_blocking(stop_all)
+        .await
+        .map_err(|e| SidecarError::Io(e.to_string()))?
 }
 
 #[tauri::command]
-pub fn sidecar_status() -> Result<SidecarStatus, SidecarError> {
-    let app_config = config::load_config()?;
-    Ok(build_status(app_config.chroma_port, app_config.sidecar_port))
+pub async fn sidecar_status() -> Result<SidecarStatus, SidecarError> {
+    tokio::task::spawn_blocking(|| {
+        let app_config = config::load_config()?;
+        Ok(build_status(app_config.chroma_port, app_config.sidecar_port))
+    })
+    .await
+    .map_err(|e| SidecarError::Io(e.to_string()))?
 }

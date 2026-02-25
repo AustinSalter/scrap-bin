@@ -1,0 +1,217 @@
+.margin {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 0 solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  transition: width var(--transition-smooth), min-width var(--transition-smooth), border-left-width var(--transition-smooth);
+}
+
+.margin.is-open {
+  width: var(--margin-width);
+  min-width: var(--margin-width);
+  border-left-width: 1px;
+}
+
+.margin-header {
+  padding: 12px var(--panel-padding) 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.margin-header-info {
+  min-width: 0;
+}
+
+.margin-cluster-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.margin-cluster-meta {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-top: 4px;
+}
+
+.margin-close {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--ghost);
+  cursor: pointer;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+}
+
+.margin-close:hover {
+  background: var(--bg3);
+  color: var(--primary);
+}
+
+.margin-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.margin-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--ghost);
+}
+
+/* ── Compose area ── */
+.margin-compose {
+  border-top: 1px solid var(--border2);
+  padding: 12px var(--panel-padding);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.compose-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ghost);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compose-label-icon {
+  width: 10px;
+  height: 10px;
+  background: var(--accent-20);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.compose-area {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--card-radius);
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  line-height: 1.6;
+  font-style: italic;
+  resize: none;
+  outline: none;
+}
+
+.compose-area:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.compose-hint {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.compose-hint kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  border-radius: 2px;
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+}
+
+/* ── Fragment item ── */
+.frag {
+  padding: 10px var(--panel-padding);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition-fast);
+}
+
+.frag:hover {
+  background: var(--bg2);
+}
+
+.frag.is-yours {
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.frag-src {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.frag-src-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.frag-src-label {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+
+.frag-content {
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  line-height: 1.6;
+}
+
+.frag.is-yours .frag-content {
+  color: var(--primary);
+  font-style: italic;
+}
+
+.frag-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.frag-tag {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 3px;
+}

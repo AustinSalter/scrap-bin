@@ -1,6 +1,8 @@
-use crate::fragment::{Fragment, SourceType};
+use crate::chroma::client::{get_client, ChromaError};
+use crate::chroma::collections::{get_collection_id, COLLECTION_READWISE};
+use crate::fragment::{self, Fragment, SourceType};
+use crate::grpc_client::{get_grpc_client, GrpcError};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -21,6 +23,10 @@ pub enum SourceError {
     ApiKeyMissing,
     #[error("Invalid data: {0}")]
     InvalidData(String),
+    #[error("Chroma error: {0}")]
+    Chroma(#[from] ChromaError),
+    #[error("gRPC error: {0}")]
+    Grpc(#[from] GrpcError),
 }
 
 impl Serialize for SourceError {
@@ -87,9 +93,6 @@ pub struct ReadwiseImportResult {
 
 const READWISE_API_BASE: &str = "https://readwise.io/api/v2";
 
-/// Rough token-per-character ratio for English text.
-const CHARS_PER_TOKEN: f64 = 4.0;
-
 /// Config key for persisting the last sync timestamp.
 const LAST_SYNC_KEY: &str = "readwise_last_sync";
 
@@ -97,17 +100,7 @@ const LAST_SYNC_KEY: &str = "readwise_last_sync";
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Computes the SHA-256 hex digest of a string.
-fn content_hash(text: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
-
-/// Estimates the token count from character length.
-fn estimate_tokens(text: &str) -> usize {
-    (text.len() as f64 / CHARS_PER_TOKEN).ceil() as usize
-}
+// Use shared helpers from fragment module.
 
 /// Loads the Readwise API key from config, returning an error if not set.
 fn get_api_key() -> Result<String, SourceError> {
@@ -139,8 +132,8 @@ fn save_last_sync_timestamp(timestamp: &str) -> Result<(), SourceError> {
 
 /// Converts a Readwise highlight into a single `Fragment`.
 fn highlight_to_fragment(h: &ReadwiseHighlight) -> Fragment {
-    let hash = content_hash(&h.text);
-    let token_count = estimate_tokens(&h.text);
+    let hash = fragment::content_hash(&h.text);
+    let token_count = fragment::estimate_tokens(&h.text);
     let id = ulid::Ulid::new().to_string();
 
     let source_path = h
@@ -263,13 +256,36 @@ pub async fn source_readwise_import() -> Result<ReadwiseImportResult, SourceErro
         last_sync
     );
 
-    let _fragments: Vec<Fragment> = highlights
+    let fragments: Vec<Fragment> = highlights
         .iter()
         .filter(|h| !h.text.trim().is_empty())
         .map(highlight_to_fragment)
         .collect();
 
-    let imported = _fragments.len();
+    let imported = fragments.len();
+
+    // Embed and store fragments in Chroma.
+    if !fragments.is_empty() {
+        let grpc = get_grpc_client()?;
+        let client = get_client();
+        let coll_id = get_collection_id(COLLECTION_READWISE).await?;
+
+        let texts: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let embeddings = grpc.embed_batch(texts).await?;
+
+        let ids: Vec<String> = fragments.iter().map(|f| f.id.clone()).collect();
+        let documents: Vec<String> = fragments.iter().map(|f| f.content.clone()).collect();
+        let metadatas: Vec<serde_json::Value> = fragments
+            .iter()
+            .map(fragment::fragment_to_chroma_metadata)
+            .collect();
+
+        client
+            .add(&coll_id, ids, Some(embeddings), Some(documents), Some(metadatas))
+            .await?;
+
+        tracing::info!("Stored {} Readwise fragments in Chroma", fragments.len());
+    }
 
     // Update the sync timestamp to now.
     let now = chrono::Utc::now().to_rfc3339();
@@ -375,9 +391,9 @@ mod tests {
 
     #[test]
     fn test_content_hash_deterministic() {
-        let hash1 = content_hash("hello world");
-        let hash2 = content_hash("hello world");
+        let hash1 = fragment::content_hash("hello world");
+        let hash2 = fragment::content_hash("hello world");
         assert_eq!(hash1, hash2);
-        assert_ne!(content_hash("hello world"), content_hash("different text"));
+        assert_ne!(fragment::content_hash("hello world"), fragment::content_hash("different text"));
     }
 }

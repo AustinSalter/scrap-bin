@@ -9,9 +9,12 @@ import logging
 import time
 from collections import defaultdict
 
+import math
+
 import grpc
 import hdbscan
 import numpy as np
+import umap
 
 import sidecar_pb2
 import sidecar_pb2_grpc
@@ -46,12 +49,14 @@ class ClusteringServiceServicer(sidecar_pb2_grpc.ClusteringServiceServicer):
             context.abort(
                 grpc.StatusCode.INVALID_ARGUMENT, "embeddings must not be empty"
             )
+            return sidecar_pb2.ClusterResponse()
 
         if len(embeddings) != len(ids):
             context.abort(
                 grpc.StatusCode.INVALID_ARGUMENT,
                 f"embeddings length ({len(embeddings)}) must match ids length ({len(ids)})",
             )
+            return sidecar_pb2.ClusterResponse()
 
         # Extract parameters with defaults.
         min_cluster_size = (
@@ -76,6 +81,9 @@ class ClusteringServiceServicer(sidecar_pb2_grpc.ClusteringServiceServicer):
         )
 
         start = time.perf_counter()
+        # Euclidean distance is equivalent to cosine distance for normalized
+        # embeddings: d_euclidean = sqrt(2 - 2*cos_sim). nomic-embed-text
+        # produces L2-normalized vectors, so euclidean is correct here.
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=min_cluster_size,
             min_samples=min_samples,
@@ -120,3 +128,109 @@ class ClusteringServiceServicer(sidecar_pb2_grpc.ClusteringServiceServicer):
             clusters=cluster_infos,
             noise_count=noise_count,
         )
+
+    def ProjectPositions(
+        self,
+        request: sidecar_pb2.ProjectRequest,
+        context: grpc.ServicerContext,
+    ) -> sidecar_pb2.ProjectResponse:
+        """Project high-dimensional centroids to 2D positions via UMAP.
+
+        Args:
+            request: ProjectRequest with centroid embeddings and cluster IDs.
+            context: gRPC servicer context.
+
+        Returns:
+            ProjectResponse with normalized 2D positions.
+        """
+        centroids = request.centroids
+        cluster_ids = list(request.cluster_ids)
+        n = len(centroids)
+
+        if n == 0:
+            return sidecar_pb2.ProjectResponse(positions=[])
+
+        if n != len(cluster_ids):
+            context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT,
+                f"centroids length ({n}) must match cluster_ids length ({len(cluster_ids)})",
+            )
+            return sidecar_pb2.ProjectResponse()
+
+        # Single cluster: center it.
+        if n == 1:
+            return sidecar_pb2.ProjectResponse(
+                positions=[
+                    sidecar_pb2.Position2D(
+                        cluster_id=cluster_ids[0], x=0.5, y=0.5
+                    )
+                ]
+            )
+
+        # Two clusters: place on a horizontal line.
+        if n == 2:
+            return sidecar_pb2.ProjectResponse(
+                positions=[
+                    sidecar_pb2.Position2D(
+                        cluster_id=cluster_ids[0], x=0.3, y=0.5
+                    ),
+                    sidecar_pb2.Position2D(
+                        cluster_id=cluster_ids[1], x=0.7, y=0.5
+                    ),
+                ]
+            )
+
+        # For < 3 effective unique points but n >= 3, use circle layout.
+        vectors = np.array(
+            [list(c.values) for c in centroids], dtype=np.float32
+        )
+
+        # Check if we have enough unique vectors for UMAP.
+        unique_count = len(np.unique(vectors, axis=0))
+        if unique_count < 3:
+            # Evenly spaced circle layout.
+            positions = []
+            for i, cid in enumerate(cluster_ids):
+                angle = 2 * math.pi * i / n
+                x = 0.5 + 0.35 * math.cos(angle)
+                y = 0.5 + 0.35 * math.sin(angle)
+                positions.append(
+                    sidecar_pb2.Position2D(cluster_id=cid, x=x, y=y)
+                )
+            return sidecar_pb2.ProjectResponse(positions=positions)
+
+        logger.info("Projecting %d centroids to 2D via UMAP", n)
+        start = time.perf_counter()
+
+        n_neighbors = min(15, n - 1)
+        reducer = umap.UMAP(
+            n_components=2,
+            metric="cosine",
+            n_neighbors=n_neighbors,
+            random_state=42,
+        )
+        projected = reducer.fit_transform(vectors)
+        elapsed = time.perf_counter() - start
+        logger.info("UMAP projection complete in %.3fs", elapsed)
+
+        # Normalize to [0.05, 0.95] range (5% padding).
+        mins = projected.min(axis=0)
+        maxs = projected.max(axis=0)
+        ranges = maxs - mins
+        # Avoid division by zero.
+        ranges[ranges == 0] = 1.0
+        normalized = (projected - mins) / ranges
+        # Scale to [0.05, 0.95].
+        normalized = normalized * 0.9 + 0.05
+
+        positions = []
+        for i, cid in enumerate(cluster_ids):
+            positions.append(
+                sidecar_pb2.Position2D(
+                    cluster_id=cid,
+                    x=float(normalized[i, 0]),
+                    y=float(normalized[i, 1]),
+                )
+            )
+
+        return sidecar_pb2.ProjectResponse(positions=positions)

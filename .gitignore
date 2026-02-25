@@ -14,7 +14,7 @@ src-tauri/target/
 
 # Chroma DB
 chroma_data/
-.dialectic-rl/
+.scrapbin/
 
 # gRPC generated stubs
 sidecar/sidecar_pb2.py

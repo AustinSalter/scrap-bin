@@ -101,7 +101,7 @@ impl ChromaClient {
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(5))
             .build()
-            .expect("failed to build reqwest client");
+            .unwrap_or_else(|_| Client::new());
 
         Self {
             http,

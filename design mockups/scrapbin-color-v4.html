@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dialectic — Color Study v4: Finals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Archivo+Narrow:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&family=Cousine:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #09090b;
+    color: #a1a1aa;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 32px 28px;
+    line-height: 1.6;
+  }
+
+  .study-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #1e1e22;
+    padding-bottom: 16px;
+    margin-bottom: 10px;
+  }
+  .study-header h1 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: #fafafa;
+  }
+  .study-header h1 em { font-style: italic; color: #52525b; }
+  .study-header .meta { font-size: 10px; color: #3f3f46; letter-spacing: 0.1em; text-transform: uppercase; }
+  .study-subtitle {
+    font-family: 'Lora', serif;
+    font-size: 12px;
+    font-style: italic;
+    color: #52525b;
+    margin-bottom: 40px;
+  }
+  .section { margin-bottom: 52px; }
+  .section-label {
+    font-family: 'Archivo Narrow', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #52525b;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: #1e1e22; }
+  .annotation {
+    margin-top: 14px;
+    padding: 14px 18px;
+    background: #0f0f12;
+    border-left: 2px solid #27272a;
+    border-radius: 0 4px 4px 0;
+  }
+  .annotation p { font-family: 'Lora', serif; font-size: 11px; color: #71717a; line-height: 1.7; font-style: italic; }
+  .annotation strong { color: #a1a1aa; font-style: normal; }
+  .ann-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
+  .ann-col h4 { font-family: 'Archivo Narrow', sans-serif; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #71717a; margin-bottom: 6px; }
+  .ann-col p { font-family: 'Lora', serif; font-size: 10px; font-style: italic; color: #52525b; line-height: 1.6; }
+
+  /* Palette strips */
+  .palette-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .pal-col { border: 1px solid #1e1e22; border-radius: 8px; overflow: hidden; }
+  .pal-col__header { padding: 12px 14px 6px; background: #0f0f12; }
+  .pal-col__name { font-family: 'Archivo Narrow', sans-serif; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #e4e4e7; }
+  .pal-col__sub { font-family: 'Lora', serif; font-size: 10px; font-style: italic; color: #52525b; margin-top: 2px; padding-bottom: 10px; }
+  .pal-strip { display: flex; height: 40px; }
+  .pal-swatch { flex: 1; position: relative; cursor: crosshair; }
+  .pal-swatch__label { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); font-family: 'Cousine', monospace; font-size: 7px; white-space: nowrap; opacity: 0; transition: opacity 0.15s; pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+  .pal-swatch:hover .pal-swatch__label { opacity: 1; }
+  .pal-accents { display: flex; height: 28px; border-top: 1px solid #1e1e22; }
+  .pal-accent { flex: 1; position: relative; cursor: crosshair; }
+  .pal-accent__label { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-family: 'Cousine', monospace; font-size: 7px; white-space: nowrap; opacity: 0; transition: opacity 0.15s; pointer-events: none; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+  .pal-accent:hover .pal-accent__label { opacity: 1; }
+  .pal-tokens { padding: 10px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; background: #0f0f12; border-top: 1px solid #1e1e22; }
+  .pal-token { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #52525b; }
+  .pal-token__dot { width: 8px; height: 8px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+
+  /* Component comparison */
+  .comp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .comp-cell { border: 1px solid #1e1e22; border-radius: 8px; overflow: hidden; }
+  .comp-cell__label { padding: 7px 14px; font-family: 'Archivo Narrow', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #3f3f46; background: #0c0c0f; border-bottom: 1px solid #1e1e22; }
+
+  /* ═══════ TIDEPOOL — Paper whites + Ocean blue ═══════ */
+  .pa {
+    --bg: #ffffff; --bg2: #fafafa; --bg3: #f4f4f5;
+    --surface: #e4e4e7; --rule: #d4d4d8;
+    --ghost: #a1a1aa; --muted: #71717a; --secondary: #52525b;
+    --primary: #18181b; --ink: #09090b;
+    --accent: #5b8def; --accent-hover: #78a3ff;
+    --accent-bg: rgba(91,141,239,0.06);
+    --signal-blue: #60a5fa; --signal-green: #34d399;
+    --signal-amber: #fbbf24; --signal-purple: #a78bfa; --signal-red: #f87171;
+    --border: #e4e4e7; --border2: #d4d4d8;
+  }
+
+  /* ═══════ ARCADIA — Fresco accents on Paper base ═══════ */
+  .pb {
+    --bg: #ffffff; --bg2: #fafafa; --bg3: #f4f4f5;
+    --surface: #e4e4e7; --rule: #d4d4d8;
+    --ghost: #a1a1aa; --muted: #71717a; --secondary: #52525b;
+    --primary: #18181b; --ink: #09090b;
+    --accent: #e2622e; --accent-hover: #f07040;
+    --accent-bg: rgba(226,98,46,0.06);
+    --signal-blue: #6a9ec0; --signal-green: #6aaa72;
+    --signal-amber: #c4a040; --signal-purple: #9a82b8; --signal-red: #c85a4a;
+    --border: #e4e4e7; --border2: #d4d4d8;
+  }
+
+  /* ═══════ SHARED COMPONENTS ═══════ */
+  .x-nav { display: flex; align-items: center; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .x-nav__brand { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 500; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+  .x-nav__mark { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 12px; font-weight: 500; }
+  .pa .x-nav__mark { background: var(--ink); color: #fff; }
+  .pb .x-nav__mark { background: var(--accent); color: #fff; }
+  .x-nav__items { display: flex; gap: 2px; margin-left: auto; }
+  .x-nav__item { font-family: 'Archivo Narrow', sans-serif; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 4px; color: var(--muted); cursor: default; }
+  .x-nav__item--active { color: #fff; }
+  .pa .x-nav__item--active { background: var(--ink); }
+  .pb .x-nav__item--active { background: var(--accent); }
+  .x-nav__sep { width: 1px; height: 16px; background: var(--border); margin: 0 8px; align-self: center; }
+  .x-nav__status { display: flex; align-items: center; gap: 5px; font-family: 'Cousine', monospace; font-size: 9px; color: var(--ghost); }
+  .x-nav__dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .x-widget { background: var(--bg2); }
+  .pa .x-widget { background: var(--bg); }
+  .x-widget__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .x-widget__title { font-family: 'Archivo Narrow', sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .x-widget__badge { font-family: 'Cousine', monospace; font-size: 9px; padding: 1px 6px; border-radius: 9px; background: var(--accent); color: #fff; font-weight: 700; }
+  .x-widget__action { font-family: 'Archivo Narrow', sans-serif; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); }
+  .x-widget__body { padding: 4px 8px 8px; }
+
+  .x-scrap { padding: 9px 12px; border-radius: 5px; border: 1px solid transparent; cursor: default; transition: all 0.12s; position: relative; }
+  .x-scrap:hover { background: var(--accent-bg); border-color: var(--border); }
+  .x-scrap--drag { background: var(--accent-bg); border-color: var(--accent) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .x-scrap__meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .x-scrap__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .x-scrap__source { font-family: 'Cousine', monospace; font-size: 9px; color: var(--muted); }
+  .x-scrap__time { font-family: 'Cousine', monospace; font-size: 8px; color: var(--ghost); margin-left: auto; }
+  .x-scrap__title { font-family: 'Libre Baskerville', serif; font-size: 12px; color: var(--primary); margin-bottom: 3px; line-height: 1.35; }
+  .x-scrap__preview { font-family: 'Lora', serif; font-size: 10.5px; color: var(--secondary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .x-scrap__tags { display: flex; gap: 4px; margin-top: 6px; }
+  .x-scrap__tag { font-family: 'Cousine', monospace; font-size: 8px; padding: 1px 6px; border-radius: 3px; background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+  .pa .x-scrap__tag { background: var(--bg2); }
+  .x-scrap__idx { position: absolute; top: 9px; right: 12px; font-family: 'Cousine', monospace; font-size: 8px; color: var(--ghost); }
+
+  .x-collage { background: var(--bg3); }
+  .pa .x-collage { background: var(--bg2); }
+  .x-collage__head { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .x-collage__title { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 400; color: var(--primary); font-style: italic; }
+  .x-collage__count { font-family: 'Cousine', monospace; font-size: 9px; color: var(--muted); }
+  .x-collage__body { padding: 12px 16px; }
+  .x-collage__item { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; margin-bottom: 7px; display: flex; gap: 10px; transition: border-color 0.15s; }
+  .pa .x-collage__item { background: var(--bg); }
+  .x-collage__item:hover { border-color: var(--rule); }
+  .x-collage__icon { width: 26px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; background: var(--bg3); border: 1px solid var(--border); }
+  .pa .x-collage__icon { background: var(--bg2); }
+  .x-collage__item-title { font-family: 'Libre Baskerville', serif; font-size: 10.5px; color: var(--primary); margin-bottom: 1px; }
+  .x-collage__item-src { font-family: 'Cousine', monospace; font-size: 8px; color: var(--ghost); }
+  .x-collage__notes { margin-top: 6px; }
+  .x-collage__notes-label { font-family: 'Archivo Narrow', sans-serif; font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ghost); margin-bottom: 6px; }
+  .x-collage__notes-area { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+  .pa .x-collage__notes-area { background: var(--bg); }
+  .x-collage__notes-text { font-family: 'Lora', serif; font-size: 10.5px; color: var(--secondary); line-height: 1.6; font-style: italic; }
+  .x-collage__cursor { display: inline-block; width: 1.5px; height: 12px; background: var(--accent); margin-left: 2px; vertical-align: text-bottom; animation: blink 1.2s infinite; }
+  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  .x-input { padding: 10px 16px; background: var(--bg2); border-top: 1px solid var(--border); }
+  .pa .x-input { background: var(--bg); }
+  .x-input__box { display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border2); border-radius: 6px; padding: 8px 12px; background: var(--bg); transition: border-color 0.15s; }
+  .x-input__box:hover { border-color: var(--accent); }
+  .x-input__prompt { font-family: 'Cormorant Garamond', serif; font-size: 14px; font-weight: 500; color: var(--accent); }
+  .x-input__text { font-family: 'Lora', serif; font-size: 10.5px; color: var(--ghost); }
+  .x-input__key { margin-left: auto; font-family: 'Cousine', monospace; font-size: 9px; color: var(--ghost); padding: 2px 6px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg3); }
+  .pa .x-input__key { background: var(--bg2); }
+
+  .x-btns { display: flex; gap: 8px; padding: 12px 16px; background: var(--bg2); border-top: 1px solid var(--border); }
+  .pa .x-btns { background: var(--bg); }
+  .x-btn { font-family: 'Archivo Narrow', sans-serif; font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 4px; cursor: default; letter-spacing: 0.02em; }
+  .x-btn--primary { color: #fff; }
+  .pa .x-btn--primary { background: var(--ink); }
+  .pb .x-btn--primary { background: var(--accent); }
+  .x-btn--accent { background: var(--accent); color: #fff; }
+  .x-btn--outline { background: transparent; color: var(--secondary); border: 1px solid var(--border2); }
+  .x-btn--ghost { background: transparent; color: var(--muted); border: 1px solid transparent; }
+
+  .x-status { display: flex; align-items: center; gap: 14px; padding: 8px 16px; background: var(--bg); border-top: 1px solid var(--border); }
+  .x-status__item { display: flex; align-items: center; gap: 5px; font-family: 'Cousine', monospace; font-size: 9px; color: var(--muted); }
+  .x-status__dot { width: 6px; height: 6px; border-radius: 50%; }
+  .x-status__div { width: 1px; height: 12px; background: var(--border); }
+
+  .x-cluster { position: relative; min-height: 180px; overflow: hidden; background: var(--bg); }
+  .x-cluster__hatch { position: absolute; inset: 0; opacity: 0.5; }
+  .pa .x-cluster__hatch { background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 10.5px), repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 10.5px); }
+  .pb .x-cluster__hatch { background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(114,130,100,0.03) 10px, rgba(114,130,100,0.03) 10.5px), repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(114,130,100,0.03) 10px, rgba(114,130,100,0.03) 10.5px); }
+  .x-node { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Cousine', monospace; z-index: 1; }
+  .x-node--lg { width: 56px; height: 56px; background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; box-shadow: 0 0 0 4px var(--accent-bg), 0 4px 20px rgba(0,0,0,0.15); }
+  .x-node--md { width: 32px; height: 32px; background: var(--bg3); border: 1.5px solid var(--rule); font-size: 7px; color: var(--muted); }
+  .pa .x-node--md { background: var(--bg2); }
+  .x-node--sm { width: 18px; height: 18px; background: var(--bg3); border: 1px solid var(--border); }
+  .pa .x-node--sm { background: var(--bg2); }
+  .x-edge { position: absolute; height: 1px; background: var(--rule); transform-origin: left center; z-index: 0; }
+  .x-edge--accent { height: 1.5px; background: var(--accent); opacity: 0.25; }
+  .x-cluster__label { position: absolute; font-family: 'Lora', serif; font-size: 9px; font-style: italic; color: var(--muted); z-index: 2; }
+</style>
+</head>
+<body>
+
+<div class="study-header">
+  <h1>Dialectic — Color Study v4 <em>Two Finalists</em></h1>
+  <span class="meta">Component Study #1d · Palette</span>
+</div>
+<p class="study-subtitle">
+  Tidepool (cerulean + lifted signals) vs Arcadia (vermillion + fresco signals).<br>
+  Same white/black base. Pure accent comparison.
+</p>
+
+<!-- 1. TOKENS -->
+<div class="section">
+  <div class="section-label">01 — Palette Tokens</div>
+  <div class="palette-compare">
+    <div class="pal-col">
+      <div class="pal-col__header">
+        <div class="pal-col__name">A — Tidepool</div>
+        <div class="pal-col__sub">Paper whites · Black ink · Ocean cerulean accent · Lifted signals</div>
+      </div>
+      <div class="pal-strip">
+        <div class="pal-swatch" style="background:#fff;"><span class="pal-swatch__label" style="color:#999;">#ffffff</span></div>
+        <div class="pal-swatch" style="background:#fafafa;"><span class="pal-swatch__label" style="color:#999;">#fafafa</span></div>
+        <div class="pal-swatch" style="background:#f4f4f5;"><span class="pal-swatch__label" style="color:#999;">#f4f4f5</span></div>
+        <div class="pal-swatch" style="background:#e4e4e7;"><span class="pal-swatch__label" style="color:#666;">#e4e4e7</span></div>
+        <div class="pal-swatch" style="background:#d4d4d8;"><span class="pal-swatch__label" style="color:#666;">#d4d4d8</span></div>
+        <div class="pal-swatch" style="background:#a1a1aa;"><span class="pal-swatch__label" style="color:#fff;">#a1a1aa</span></div>
+        <div class="pal-swatch" style="background:#71717a;"><span class="pal-swatch__label" style="color:#fff;">#71717a</span></div>
+        <div class="pal-swatch" style="background:#52525b;"><span class="pal-swatch__label" style="color:#fff;">#52525b</span></div>
+        <div class="pal-swatch" style="background:#18181b;"><span class="pal-swatch__label" style="color:#fff;">#18181b</span></div>
+        <div class="pal-swatch" style="background:#09090b;"><span class="pal-swatch__label" style="color:#fff;">#09090b</span></div>
+      </div>
+      <div class="pal-accents">
+        <div class="pal-accent" style="background:#5b8def;"><span class="pal-accent__label">#5b8def</span></div>
+        <div class="pal-accent" style="background:#60a5fa;"><span class="pal-accent__label">blue</span></div>
+        <div class="pal-accent" style="background:#34d399;"><span class="pal-accent__label">green</span></div>
+        <div class="pal-accent" style="background:#fbbf24;"><span class="pal-accent__label">amber</span></div>
+        <div class="pal-accent" style="background:#a78bfa;"><span class="pal-accent__label">purple</span></div>
+        <div class="pal-accent" style="background:#f87171;"><span class="pal-accent__label">red</span></div>
+      </div>
+      <div class="pal-tokens">
+        <div class="pal-token"><div class="pal-token__dot" style="background:#fff;border-color:#ddd;"></div> True white bg</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#5b8def;"></div> Ocean cerulean</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#09090b;"></div> Black ink CTAs</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#f4f4f5;border-color:#ddd;"></div> Lifted signals</div>
+      </div>
+    </div>
+    <div class="pal-col">
+      <div class="pal-col__header">
+        <div class="pal-col__name">B — Arcadia</div>
+        <div class="pal-col__sub">Paper whites · Black ink · Vermillion accent · Fresco signals</div>
+      </div>
+      <div class="pal-strip">
+        <div class="pal-swatch" style="background:#fff;"><span class="pal-swatch__label" style="color:#999;">#ffffff</span></div>
+        <div class="pal-swatch" style="background:#fafafa;"><span class="pal-swatch__label" style="color:#999;">#fafafa</span></div>
+        <div class="pal-swatch" style="background:#f4f4f5;"><span class="pal-swatch__label" style="color:#999;">#f4f4f5</span></div>
+        <div class="pal-swatch" style="background:#e4e4e7;"><span class="pal-swatch__label" style="color:#666;">#e4e4e7</span></div>
+        <div class="pal-swatch" style="background:#d4d4d8;"><span class="pal-swatch__label" style="color:#666;">#d4d4d8</span></div>
+        <div class="pal-swatch" style="background:#a1a1aa;"><span class="pal-swatch__label" style="color:#fff;">#a1a1aa</span></div>
+        <div class="pal-swatch" style="background:#71717a;"><span class="pal-swatch__label" style="color:#fff;">#71717a</span></div>
+        <div class="pal-swatch" style="background:#52525b;"><span class="pal-swatch__label" style="color:#fff;">#52525b</span></div>
+        <div class="pal-swatch" style="background:#18181b;"><span class="pal-swatch__label" style="color:#fff;">#18181b</span></div>
+        <div class="pal-swatch" style="background:#09090b;"><span class="pal-swatch__label" style="color:#fff;">#09090b</span></div>
+      </div>
+      <div class="pal-accents">
+        <div class="pal-accent" style="background:#e2622e;"><span class="pal-accent__label">#e2622e</span></div>
+        <div class="pal-accent" style="background:#6a9ec0;"><span class="pal-accent__label">sky</span></div>
+        <div class="pal-accent" style="background:#6aaa72;"><span class="pal-accent__label">sage</span></div>
+        <div class="pal-accent" style="background:#c4a040;"><span class="pal-accent__label">ochre</span></div>
+        <div class="pal-accent" style="background:#9a82b8;"><span class="pal-accent__label">lavender</span></div>
+        <div class="pal-accent" style="background:#c85a4a;"><span class="pal-accent__label">terra</span></div>
+      </div>
+      <div class="pal-tokens">
+        <div class="pal-token"><div class="pal-token__dot" style="background:#fff;border-color:#ddd;"></div> Same Zinc base</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#e2622e;"></div> Vermillion accent</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#6a9ec0;"></div> Fresco signals</div>
+        <div class="pal-token"><div class="pal-token__dot" style="background:#09090b;"></div> Black ink CTAs</div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <p><strong>Same base, different accents.</strong> Both palettes share Paper's white/black Zinc scale. The only difference is accent color and signal palette. Tidepool uses Ocean's cerulean + lifted signals. Arcadia uses vermillion + muted fresco signals. This isolates the pure accent personality.</p>
+  </div>
+</div>
+
+<!-- 2. NAV -->
+<div class="section">
+  <div class="section-label">02 — Navigation</div>
+  <div class="comp-row">
+    <div class="comp-cell"><div class="comp-cell__label">A · Tidepool</div><div class="pa"><div class="x-nav"><div class="x-nav__brand"><div class="x-nav__mark">δ</div> Dialectic</div><div class="x-nav__items"><div class="x-nav__item x-nav__item--active">Feed</div><div class="x-nav__item">Clusters</div><div class="x-nav__item">Threads</div><div class="x-nav__item">Vault</div></div><div class="x-nav__sep"></div><div class="x-nav__status"><div class="x-nav__dot" style="background:var(--signal-green);"></div> Sidecar</div></div></div></div>
+    <div class="comp-cell"><div class="comp-cell__label">B · Arcadia</div><div class="pb"><div class="x-nav"><div class="x-nav__brand"><div class="x-nav__mark">δ</div> Dialectic</div><div class="x-nav__items"><div class="x-nav__item x-nav__item--active">Feed</div><div class="x-nav__item">Clusters</div><div class="x-nav__item">Threads</div><div class="x-nav__item">Vault</div></div><div class="x-nav__sep"></div><div class="x-nav__status"><div class="x-nav__dot" style="background:var(--signal-green);"></div> Sidecar</div></div></div></div>
+  </div>
+</div>
+
+<!-- 3. FEED -->
+<div class="section">
+  <div class="section-label">03 — Feed Widget</div>
+  <div class="comp-row">
+    <div class="comp-cell"><div class="comp-cell__label">A · Tidepool</div><div class="pa"><div class="x-widget"><div class="x-widget__head"><div class="x-widget__title">Incoming Feed <span class="x-widget__badge">12</span></div><div class="x-widget__action">View All →</div></div><div class="x-widget__body">
+      <div class="x-scrap"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-blue);"></div><span class="x-scrap__source">Astral Codex Ten</span><span class="x-scrap__time">3m</span></div><div class="x-scrap__title">Against Orthogonality</div><div class="x-scrap__preview">The thesis that intelligence and goals are independent variables has always felt under-argued…</div><div class="x-scrap__tags"><span class="x-scrap__tag">alignment</span><span class="x-scrap__tag">philosophy</span></div><span class="x-scrap__idx">001</span></div>
+      <div class="x-scrap x-scrap--drag"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-purple);"></div><span class="x-scrap__source">@eigenrobot</span><span class="x-scrap__time">14m</span></div><div class="x-scrap__title">compression is epistemology</div><div class="x-scrap__preview">you can't compress without building a model. that's the whole game.</div><div class="x-scrap__tags"><span class="x-scrap__tag">compression</span></div><span class="x-scrap__idx">002</span></div>
+      <div class="x-scrap"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-amber);"></div><span class="x-scrap__source">Obsidian Vault</span><span class="x-scrap__time">1h</span></div><div class="x-scrap__title">Johannine Logos & Information Theory</div><div class="x-scrap__preview">Connecting "In the beginning was the Word" to Shannon entropy — the Logos as compression.</div><div class="x-scrap__tags"><span class="x-scrap__tag">theology</span><span class="x-scrap__tag">information</span></div><span class="x-scrap__idx">003</span></div>
+    </div></div></div></div>
+
+    <div class="comp-cell"><div class="comp-cell__label">B · Arcadia</div><div class="pb"><div class="x-widget"><div class="x-widget__head"><div class="x-widget__title">Incoming Feed <span class="x-widget__badge">12</span></div><div class="x-widget__action">View All →</div></div><div class="x-widget__body">
+      <div class="x-scrap"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-blue);"></div><span class="x-scrap__source">Astral Codex Ten</span><span class="x-scrap__time">3m</span></div><div class="x-scrap__title">Against Orthogonality</div><div class="x-scrap__preview">The thesis that intelligence and goals are independent variables has always felt under-argued…</div><div class="x-scrap__tags"><span class="x-scrap__tag">alignment</span><span class="x-scrap__tag">philosophy</span></div><span class="x-scrap__idx">001</span></div>
+      <div class="x-scrap x-scrap--drag"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-purple);"></div><span class="x-scrap__source">@eigenrobot</span><span class="x-scrap__time">14m</span></div><div class="x-scrap__title">compression is epistemology</div><div class="x-scrap__preview">you can't compress without building a model. that's the whole game.</div><div class="x-scrap__tags"><span class="x-scrap__tag">compression</span></div><span class="x-scrap__idx">002</span></div>
+      <div class="x-scrap"><div class="x-scrap__meta"><div class="x-scrap__dot" style="background:var(--signal-amber);"></div><span class="x-scrap__source">Obsidian Vault</span><span class="x-scrap__time">1h</span></div><div class="x-scrap__title">Johannine Logos & Information Theory</div><div class="x-scrap__preview">Connecting "In the beginning was the Word" to Shannon entropy — the Logos as compression.</div><div class="x-scrap__tags"><span class="x-scrap__tag">theology</span><span class="x-scrap__tag">information</span></div><span class="x-scrap__idx">003</span></div>
+    </div></div></div></div>
+  </div>
+</div>
+
+<!-- 4. COLLAGE -->
+<div class="section">
+  <div class="section-label">04 — Collage Panel</div>
+  <div class="comp-row">
+    <div class="comp-cell"><div class="comp-cell__label">A · Tidepool</div><div class="pa"><div class="x-collage"><div class="x-collage__head"><div class="x-collage__title">Working Collage</div><div class="x-collage__count">3 fragments</div></div><div class="x-collage__body">
+      <div class="x-collage__item"><div class="x-collage__icon">📎</div><div><div class="x-collage__item-title">Against Orthogonality</div><div class="x-collage__item-src">astralcodexten.com · 3m</div></div></div>
+      <div class="x-collage__item"><div class="x-collage__icon">🧵</div><div><div class="x-collage__item-title">Compression is epistemology</div><div class="x-collage__item-src">@eigenrobot · 14m</div></div></div>
+      <div class="x-collage__item"><div class="x-collage__icon">📓</div><div><div class="x-collage__item-title">Johannine Logos note</div><div class="x-collage__item-src">obsidian vault · 1h</div></div></div>
+      <div class="x-collage__notes"><div class="x-collage__notes-label">Notes</div><div class="x-collage__notes-area"><span class="x-collage__notes-text">These converge — compression forces representation, and representation is meaning</span><span class="x-collage__cursor"></span></div></div>
+    </div></div></div></div>
+
+    <div class="comp-cell"><div class="comp-cell__label">B · Arcadia</div><div class="pb"><div class="x-collage"><div class="x-collage__head"><div class="x-collage__title">Working Collage</div><div class="x-collage__count">3 fragments</div></div><div class="x-collage__body">
+      <div class="x-collage__item"><div class="x-collage__icon">📎</div><div><div class="x-collage__item-title">Against Orthogonality</div><div class="x-collage__item-src">astralcodexten.com · 3m</div></div></div>
+      <div class="x-collage__item"><div class="x-collage__icon">🧵</div><div><div class="x-collage__item-title">Compression is epistemology</div><div class="x-collage__item-src">@eigenrobot · 14m</div></div></div>
+      <div class="x-collage__item"><div class="x-collage__icon">📓</div><div><div class="x-collage__item-title">Johannine Logos note</div><div class="x-collage__item-src">obsidian vault · 1h</div></div></div>
+      <div class="x-collage__notes"><div class="x-collage__notes-label">Notes</div><div class="x-collage__notes-area"><span class="x-collage__notes-text">These converge — compression forces representation, and representation is meaning</span><span class="x-collage__cursor"></span></div></div>
+    </div></div></div></div>
+  </div>
+</div>
+
+<!-- 5. INPUT + BUTTONS -->
+<div class="section">
+  <div class="section-label">05 — Input + Buttons</div>
+  <div class="comp-row">
+    <div class="comp-cell"><div class="comp-cell__label">A · Tidepool</div><div class="pa">
+      <div class="x-input"><div class="x-input__box"><span class="x-input__prompt">λ</span><span class="x-input__text">Search fragments, clusters, threads…</span><span class="x-input__key">⌘K</span></div></div>
+      <div class="x-btns"><div class="x-btn x-btn--primary">Create Stream ↗</div><div class="x-btn x-btn--accent">Re-cluster</div><div class="x-btn x-btn--outline">Export</div><div class="x-btn x-btn--ghost">Cancel</div></div>
+    </div></div>
+    <div class="comp-cell"><div class="comp-cell__label">B · Arcadia</div><div class="pb">
+      <div class="x-input"><div class="x-input__box"><span class="x-input__prompt">λ</span><span class="x-input__text">Search fragments, clusters, threads…</span><span class="x-input__key">⌘K</span></div></div>
+      <div class="x-btns"><div class="x-btn x-btn--primary">Create Stream ↗</div><div class="x-btn x-btn--accent">Re-cluster</div><div class="x-btn x-btn--outline">Export</div><div class="x-btn x-btn--ghost">Cancel</div></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- 6. STATUS + CLUSTER -->
+<div class="section">
+  <div class="section-label">06 — Status + Cluster Map</div>
+  <div class="comp-row">
+    <div class="comp-cell"><div class="comp-cell__label">A · Tidepool</div><div class="pa">
+      <div class="x-status">
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-green);"></div> Chroma</div><div class="x-status__div"></div>
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-green);"></div> gRPC</div><div class="x-status__div"></div>
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-amber);"></div> Sync…</div>
+        <div class="x-status__item" style="margin-left:auto;">1,847 frags · 47 clusters</div>
+      </div>
+      <div class="x-cluster"><div class="x-cluster__hatch"></div>
+        <div class="x-edge" style="left:180px;top:82px;width:100px;transform:rotate(12deg);"></div>
+        <div class="x-edge x-edge--accent" style="left:200px;top:85px;width:70px;transform:rotate(42deg);"></div>
+        <div class="x-edge" style="left:280px;top:78px;width:110px;transform:rotate(-8deg);"></div>
+        <div class="x-edge" style="left:360px;top:90px;width:80px;transform:rotate(22deg);"></div>
+        <div class="x-edge" style="left:130px;top:95px;width:60px;transform:rotate(-15deg);"></div>
+        <div class="x-node x-node--lg" style="left:170px;top:55px;">logos</div>
+        <div class="x-node x-node--md" style="left:280px;top:65px;">align</div>
+        <div class="x-node x-node--md" style="left:110px;top:95px;">comp</div>
+        <div class="x-node x-node--sm" style="left:370px;top:60px;"></div>
+        <div class="x-node x-node--sm" style="left:340px;top:120px;"></div>
+        <div class="x-node x-node--sm" style="left:220px;top:130px;"></div>
+        <div class="x-node x-node--sm" style="left:80px;top:125px;"></div>
+        <div class="x-node x-node--sm" style="left:420px;top:90px;"></div>
+        <div class="x-cluster__label" style="left:170px;top:122px;">epistemology</div>
+        <div class="x-cluster__label" style="left:320px;top:105px;">alignment</div>
+      </div>
+    </div></div>
+    <div class="comp-cell"><div class="comp-cell__label">B · Arcadia</div><div class="pb">
+      <div class="x-status">
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-green);"></div> Chroma</div><div class="x-status__div"></div>
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-green);"></div> gRPC</div><div class="x-status__div"></div>
+        <div class="x-status__item"><div class="x-status__dot" style="background:var(--signal-amber);"></div> Sync…</div>
+        <div class="x-status__item" style="margin-left:auto;">1,847 frags · 47 clusters</div>
+      </div>
+      <div class="x-cluster"><div class="x-cluster__hatch"></div>
+        <div class="x-edge" style="left:180px;top:82px;width:100px;transform:rotate(12deg);"></div>
+        <div class="x-edge x-edge--accent" style="left:200px;top:85px;width:70px;transform:rotate(42deg);"></div>
+        <div class="x-edge" style="left:280px;top:78px;width:110px;transform:rotate(-8deg);"></div>
+        <div class="x-edge" style="left:360px;top:90px;width:80px;transform:rotate(22deg);"></div>
+        <div class="x-edge" style="left:130px;top:95px;width:60px;transform:rotate(-15deg);"></div>
+        <div class="x-node x-node--lg" style="left:170px;top:55px;">logos</div>
+        <div class="x-node x-node--md" style="left:280px;top:65px;">align</div>
+        <div class="x-node x-node--md" style="left:110px;top:95px;">comp</div>
+        <div class="x-node x-node--sm" style="left:370px;top:60px;"></div>
+        <div class="x-node x-node--sm" style="left:340px;top:120px;"></div>
+        <div class="x-node x-node--sm" style="left:220px;top:130px;"></div>
+        <div class="x-node x-node--sm" style="left:80px;top:125px;"></div>
+        <div class="x-node x-node--sm" style="left:420px;top:90px;"></div>
+        <div class="x-cluster__label" style="left:170px;top:122px;">epistemology</div>
+        <div class="x-cluster__label" style="left:320px;top:105px;">alignment</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- 7. VERDICT -->
+<div class="section">
+  <div class="section-label">07 — Trade-offs</div>
+  <div class="ann-grid">
+    <div class="ann-col">
+      <h4>A — Tidepool</h4>
+      <p><strong>Accent feel:</strong> Cerulean is calm, professional, recedes. Lifted signals (#60a5fa, #34d399, #fbbf24) are bright and legible at any size. The blue badge and drag-state feel Linear-crisp.<br><br><strong>Personality:</strong> Trustworthy tool. The accent says "I'm reliable." Blue on white is the most conventional pairing — which is a strength (familiar) or weakness (generic).</p>
+    </div>
+    <div class="ann-col">
+      <h4>B — Arcadia</h4>
+      <p><strong>Accent feel:</strong> Vermillion is warm, urgent, present. Fresco signals (#6a9ec0, #6aaa72, #c4a040) are desaturated and painterly — they coordinate rather than shout. The orange badge and drag-state feel distinctly authored.<br><br><strong>Personality:</strong> Scholar's tool. The accent says "I have taste." Vermillion on white is rarer — which gives identity but needs careful use to avoid feeling like an error state.</p>
+    </div>
+  </div>
+  <div class="annotation" style="margin-top: 16px;">
+    <p><strong>Key question:</strong> Do you want the accent to recede (cerulean) or announce (vermillion)? The base is locked — white, black, Zinc. Signals are the subtler choice: lifted/bright (Tidepool) vs muted/painterly (Arcadia). The fresco signals are more distinctive but need testing at 6px dot size on white. The Arcadia cypress darks are still available as a dark mode — just swap the base tokens back.</p>
+  </div>
+</div>
+
+</body>
+</html>
