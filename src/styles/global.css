@@ -42,6 +42,7 @@ body {
   left: 0;
   right: 0;
   height: var(--drag-region-height);
+  background: var(--ink);
   -webkit-app-region: drag;
   z-index: 100;
   pointer-events: none;

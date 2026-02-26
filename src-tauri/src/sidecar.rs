@@ -31,8 +31,8 @@ pub enum SidecarError {
     SpawnFailed(String),
     #[error("Python sidecar health check timed out after {0}s")]
     HealthTimeout(u64),
-    #[error("Python sidecar exited unexpectedly")]
-    ProcessExited,
+    #[error("Python sidecar exited unexpectedly (exit code: {code}): {stderr}")]
+    ProcessExited { code: String, stderr: String },
     #[error("Chroma error: {0}")]
     Chroma(String),
     #[error("gRPC error: {0}")]
@@ -133,7 +133,10 @@ fn spawn_python_sidecar(port: u16) -> Result<Child, SidecarError> {
     // relative to the Tauri src dir. At runtime, Tauri bundles resources into the
     // app's resource directory. We try the resource path first, then fall back to
     // the relative dev path.
-    let script_path = "sidecar/server.py";
+    // During development Tauri's working directory is `src-tauri/`, so the
+    // sidecar script (which lives at `<project>/sidecar/server.py`) is one
+    // level up. In a bundled build, the resource path would be used instead.
+    let script_path = "../sidecar/server.py";
 
     tracing::info!(
         "Spawning Python sidecar: {python} {script_path} --port {port}"
@@ -167,8 +170,32 @@ fn wait_for_python_health(deadline: Duration) -> Result<(), SidecarError> {
             if let Some(ref mut sidecar) = *guard {
                 if let Some(ref mut child) = sidecar.process {
                     match child.try_wait() {
-                        Ok(Some(_status)) => {
-                            return Err(SidecarError::ProcessExited);
+                        Ok(Some(status)) => {
+                            let code = status
+                                .code()
+                                .map(|c| c.to_string())
+                                .unwrap_or_else(|| "unknown".to_string());
+                            let stderr = child
+                                .stderr
+                                .take()
+                                .and_then(|mut s| {
+                                    let mut buf = String::new();
+                                    std::io::Read::read_to_string(&mut s, &mut buf).ok()?;
+                                    Some(buf)
+                                })
+                                .unwrap_or_default();
+                            let stderr_trimmed = stderr.trim().to_string();
+                            if !stderr_trimmed.is_empty() {
+                                tracing::error!("Python sidecar stderr:\n{stderr_trimmed}");
+                            }
+                            return Err(SidecarError::ProcessExited {
+                                code,
+                                stderr: if stderr_trimmed.is_empty() {
+                                    "(no stderr captured)".to_string()
+                                } else {
+                                    stderr_trimmed
+                                },
+                            });
                         }
                         Ok(None) => { /* still running */ }
                         Err(e) => {

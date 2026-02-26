@@ -134,7 +134,7 @@ def load_model() -> tuple[SentenceTransformer, str]:
     device = _detect_device()
     logger.info("Loading model %s on device=%s ...", MODEL_NAME, device)
     start = time.perf_counter()
-    model = SentenceTransformer(MODEL_NAME, device=device)
+    model = SentenceTransformer(MODEL_NAME, device=device, trust_remote_code=True)
     elapsed = time.perf_counter() - start
     logger.info("Model loaded in %.2fs", elapsed)
     return model, device

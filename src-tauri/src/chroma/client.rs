@@ -111,11 +111,21 @@ impl ChromaClient {
         }
     }
 
+    // -- Helpers ------------------------------------------------------------
+
+    /// Base URL for collection-scoped operations (Chroma v2 API).
+    fn collections_url(&self) -> String {
+        format!(
+            "{}/api/v2/tenants/{}/databases/{}/collections",
+            self.base_url, self.tenant, self.database
+        )
+    }
+
     // -- API methods --------------------------------------------------------
 
-    /// GET /api/v1/heartbeat
+    /// GET /api/v2/heartbeat
     pub async fn heartbeat(&self) -> Result<i64, ChromaError> {
-        let url = format!("{}/api/v1/heartbeat", self.base_url);
+        let url = format!("{}/api/v2/heartbeat", self.base_url);
         let resp = self.http.get(&url).send().await?;
 
         if !resp.status().is_success() {
@@ -132,15 +142,12 @@ impl ChromaClient {
             .ok_or_else(|| ChromaError::Deserialize("missing heartbeat field".to_string()))
     }
 
-    /// POST /api/v1/collections — with get_or_create=true
+    /// POST /api/v2/tenants/{tenant}/databases/{database}/collections — with get_or_create=true
     pub async fn create_collection(
         &self,
         name: &str,
     ) -> Result<CollectionInfo, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections?tenant={}&database={}",
-            self.base_url, self.tenant, self.database
-        );
+        let url = self.collections_url();
 
         let body = serde_json::json!({
             "name": name,
@@ -160,15 +167,12 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// GET /api/v1/collections/{name}
+    /// GET /api/v2/tenants/{tenant}/databases/{database}/collections/{name}
     pub async fn get_collection(
         &self,
         name: &str,
     ) -> Result<CollectionInfo, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections/{}?tenant={}&database={}",
-            self.base_url, name, self.tenant, self.database
-        );
+        let url = format!("{}/{name}", self.collections_url());
 
         let resp = self.http.get(&url).send().await?;
 
@@ -187,12 +191,9 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// GET /api/v1/collections
+    /// GET /api/v2/tenants/{tenant}/databases/{database}/collections
     pub async fn list_collections(&self) -> Result<Vec<CollectionInfo>, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections?tenant={}&database={}",
-            self.base_url, self.tenant, self.database
-        );
+        let url = self.collections_url();
 
         let resp = self.http.get(&url).send().await?;
 
@@ -207,7 +208,7 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// POST /api/v1/collections/{id}/add
+    /// POST /api/v2/.../collections/{id}/add
     pub async fn add(
         &self,
         collection_id: &str,
@@ -222,10 +223,7 @@ impl ChromaClient {
             ));
         }
 
-        let url = format!(
-            "{}/api/v1/collections/{}/add",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/add", self.collections_url());
 
         let mut body = serde_json::json!({ "ids": ids });
 
@@ -250,7 +248,7 @@ impl ChromaClient {
         Ok(())
     }
 
-    /// POST /api/v1/collections/{id}/query
+    /// POST /api/v2/.../collections/{id}/query
     pub async fn query(
         &self,
         collection_id: &str,
@@ -259,10 +257,7 @@ impl ChromaClient {
         n_results: usize,
         where_filter: Option<serde_json::Value>,
     ) -> Result<QueryResult, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections/{}/query",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/query", self.collections_url());
 
         let mut body = serde_json::json!({ "n_results": n_results });
 
@@ -289,16 +284,13 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// POST /api/v1/collections/{id}/delete
+    /// POST /api/v2/.../collections/{id}/delete
     pub async fn delete(
         &self,
         collection_id: &str,
         ids: Vec<String>,
     ) -> Result<(), ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections/{}/delete",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/delete", self.collections_url());
 
         let body = serde_json::json!({ "ids": ids });
 
@@ -313,7 +305,7 @@ impl ChromaClient {
         Ok(())
     }
 
-    /// POST /api/v1/collections/{id}/get
+    /// POST /api/v2/.../collections/{id}/get
     pub async fn get(
         &self,
         collection_id: &str,
@@ -321,10 +313,7 @@ impl ChromaClient {
         where_filter: Option<serde_json::Value>,
         include: Option<Vec<String>>,
     ) -> Result<GetResult, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections/{}/get",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/get", self.collections_url());
 
         let mut body = serde_json::json!({});
 
@@ -351,12 +340,9 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// GET /api/v1/collections/{id}/count
+    /// GET /api/v2/.../collections/{id}/count
     pub async fn count(&self, collection_id: &str) -> Result<usize, ChromaError> {
-        let url = format!(
-            "{}/api/v1/collections/{}/count",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/count", self.collections_url());
 
         let resp = self.http.get(&url).send().await?;
 
@@ -371,7 +357,7 @@ impl ChromaClient {
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
     }
 
-    /// POST /api/v1/collections/{id}/update
+    /// POST /api/v2/.../collections/{id}/update
     pub async fn update(
         &self,
         collection_id: &str,
@@ -386,10 +372,7 @@ impl ChromaClient {
             ));
         }
 
-        let url = format!(
-            "{}/api/v1/collections/{}/update",
-            self.base_url, collection_id
-        );
+        let url = format!("{}/{collection_id}/update", self.collections_url());
 
         let mut body = serde_json::json!({ "ids": ids });
 

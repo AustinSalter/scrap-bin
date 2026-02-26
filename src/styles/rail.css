@@ -26,20 +26,24 @@
 }
 
 .rail-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--card-radius);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 18px;
   color: var(--muted);
   transition: all var(--transition-fast);
   position: relative;
   background: transparent;
   border: none;
   padding: 0;
+}
+
+.rail-icon.glyph-sm {
+  font-size: 22px;
 }
 
 .rail-icon:hover {

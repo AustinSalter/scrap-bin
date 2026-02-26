@@ -3,4 +3,5 @@
   height: 100%;
   width: 100%;
   overflow: hidden;
+  padding-top: var(--drag-region-height);  /* clear macOS traffic lights */
 }

@@ -31,7 +31,7 @@ export function Rail() {
       </button>
 
       <button
-        className={`rail-icon drag-region-exempt${activeRailIcon === 'search' ? ' active' : ''}`}
+        className={`rail-icon glyph-sm drag-region-exempt${activeRailIcon === 'search' ? ' active' : ''}`}
         onClick={() => goThreaded()}
         title="Search"
         aria-label="Search and threads"
@@ -42,7 +42,7 @@ export function Rail() {
       <div className="rail-spacer" />
 
       <button
-        className={`rail-icon drag-region-exempt${activeRailIcon === 'settings' ? ' active' : ''}`}
+        className={`rail-icon glyph-sm drag-region-exempt${activeRailIcon === 'settings' ? ' active' : ''}`}
         title="Settings"
         aria-label="Settings"
       >
