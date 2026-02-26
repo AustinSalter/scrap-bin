@@ -103,6 +103,29 @@ where
     Ok(result)
 }
 
+/// Like `with_state`, but does NOT flush to disk after mutation.
+/// Use this in hot loops (e.g. vault indexing) and call `flush_state()`
+/// once at the end to batch the disk write.
+pub fn with_state_no_flush<F, R>(f: F) -> Result<R, StateError>
+where
+    F: FnOnce(&mut IndexState) -> Result<R, StateError>,
+{
+    let mut guard = INDEX_STATE.lock();
+    let state = guard.get_or_insert_with(|| {
+        load_from_disk().unwrap_or_default()
+    });
+    f(state)
+}
+
+/// Flush the in-memory index state to disk.
+pub fn flush_state() -> Result<(), StateError> {
+    let guard = INDEX_STATE.lock();
+    if let Some(state) = guard.as_ref() {
+        save_to_disk(state)?;
+    }
+    Ok(())
+}
+
 /// Read-only access to the index state (still acquires the lock).
 pub fn with_state_read<F, R>(f: F) -> Result<R, StateError>
 where

@@ -91,12 +91,10 @@ fn poll_health(port: u16) -> bool {
     let deadline = Instant::now() + HEALTH_DEADLINE;
 
     while Instant::now() < deadline {
-        // Use block_in_place when inside a tokio runtime (safe with multi-thread),
-        // otherwise create a temporary runtime.
+        // Use Handle::current().block_on() when inside a tokio runtime (safe
+        // on a spawn_blocking thread), otherwise create a temporary runtime.
         let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            tokio::task::block_in_place(|| {
-                handle.block_on(client.heartbeat())
-            })
+            handle.block_on(client.heartbeat())
         } else {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(client.heartbeat())
@@ -168,17 +166,15 @@ pub fn start_chroma(persist_dir: PathBuf, port: u16) -> Result<(), SidecarError>
     let binary = find_chroma_binary()?;
     let child = spawn_chroma(&binary, &persist_dir, port)?;
 
-    let mut sidecar = ChromaSidecar {
+    // Store the sidecar into the global immediately (while still holding the
+    // lock) so that concurrent callers block and then see AlreadyRunning.
+    *guard = Some(ChromaSidecar {
         process: Some(child),
         persist_dir: persist_dir.clone(),
         port,
         started_at: Instant::now(),
         restart_count: 0,
-    };
-
-    // Drop the lock before polling health (which may block for up to 10s).
-    // We temporarily take ownership and re-acquire afterwards.
-    drop(guard);
+    });
 
     if !poll_health(port) {
         // Health check failed — try restarts with exponential backoff.
@@ -193,16 +189,20 @@ pub fn start_chroma(persist_dir: PathBuf, port: u16) -> Result<(), SidecarError>
             std::thread::sleep(backoff);
 
             // Kill the previous process if it is still lingering.
-            if let Some(ref mut proc) = sidecar.process {
-                let _ = proc.kill();
-                let _ = proc.wait();
+            if let Some(ref mut sc) = *guard {
+                if let Some(ref mut proc) = sc.process {
+                    let _ = proc.kill();
+                    let _ = proc.wait();
+                }
             }
 
             match spawn_chroma(&binary, &persist_dir, port) {
                 Ok(child) => {
-                    sidecar.process = Some(child);
-                    sidecar.restart_count = attempts;
-                    sidecar.started_at = Instant::now();
+                    if let Some(ref mut sc) = *guard {
+                        sc.process = Some(child);
+                        sc.restart_count = attempts;
+                        sc.started_at = Instant::now();
+                    }
 
                     if poll_health(port) {
                         healthy = true;
@@ -215,16 +215,17 @@ pub fn start_chroma(persist_dir: PathBuf, port: u16) -> Result<(), SidecarError>
 
         if !healthy {
             // Clean up the last process.
-            if let Some(ref mut proc) = sidecar.process {
-                let _ = proc.kill();
-                let _ = proc.wait();
+            if let Some(ref mut sc) = *guard {
+                if let Some(ref mut proc) = sc.process {
+                    let _ = proc.kill();
+                    let _ = proc.wait();
+                }
             }
+            *guard = None;
             return Err(SidecarError::MaxRestartsExceeded(MAX_RESTARTS));
         }
     }
 
-    let mut guard = SIDECAR.lock();
-    *guard = Some(sidecar);
     Ok(())
 }
 

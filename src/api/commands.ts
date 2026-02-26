@@ -172,6 +172,7 @@ export async function watcherStart(vaultPath: string): Promise<void> {
   return invoke('watcher_start', { vaultPath });
 }
 
+// TODO: Wire up to UI (e.g. settings panel) or remove if unneeded.
 export async function watcherStop(): Promise<void> {
   return invoke('watcher_stop');
 }

@@ -18,7 +18,7 @@ export function ErrorToast() {
   return (
     <div className="error-toast" role="alert">
       <span className="error-toast-msg">{error}</span>
-      <button className="error-toast-close" onClick={clearError}>
+      <button className="error-toast-close" onClick={clearError} aria-label="Dismiss">
         &times;
       </button>
     </div>

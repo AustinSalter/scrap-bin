@@ -6,6 +6,7 @@ from experiment scripts, training data prep, and utility tools.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import chromadb
@@ -51,8 +52,6 @@ class ChromaClient:
             except Exception as exc:  # noqa: BLE001
                 last_err = exc
                 if attempt < max_retries - 1:
-                    import time
-
                     time.sleep(1.0 * (attempt + 1))
         msg = f"Failed to connect to Chroma at {host}:{port} after {max_retries} attempts"
         if last_err is not None:

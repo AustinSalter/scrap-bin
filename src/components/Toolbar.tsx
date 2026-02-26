@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { useSearch } from '../hooks/useSearch';
 
@@ -9,6 +10,13 @@ export function Toolbar() {
   const searchQuery = useAppStore((s) => s.searchQuery);
   const { debouncedSearch, clearSearch } = useSearch();
 
+  const [inputValue, setInputValue] = useState(searchQuery);
+
+  // Sync store → local when the store clears the query.
+  useEffect(() => {
+    if (!searchQuery) setInputValue('');
+  }, [searchQuery]);
+
   const isSearchActive = searchQuery.length > 0;
 
   return (
@@ -19,12 +27,15 @@ export function Toolbar() {
           className="search-input"
           type="text"
           placeholder="Search fragments, clusters, threads…"
-          defaultValue={searchQuery}
-          onChange={(e) => debouncedSearch(e.target.value)}
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            debouncedSearch(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               clearSearch();
-              (e.target as HTMLInputElement).value = '';
+              setInputValue('');
             }
           }}
         />

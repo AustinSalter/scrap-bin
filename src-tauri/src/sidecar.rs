@@ -180,11 +180,10 @@ fn wait_for_python_health(deadline: Duration) -> Result<(), SidecarError> {
         }
 
         // Attempt a blocking health check via the tokio runtime.
-        let health_result = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let client = grpc_client::get_grpc_client()?;
-                client.health().await
-            })
+        // Uses Handle::current().block_on() directly — safe on a spawn_blocking thread.
+        let health_result = tokio::runtime::Handle::current().block_on(async {
+            let client = grpc_client::get_grpc_client()?;
+            client.health().await
         });
 
         match health_result {
@@ -317,12 +316,13 @@ fn is_python_running() -> bool {
 }
 
 /// Check whether the Python model is ready via the gRPC health endpoint.
+///
+/// Uses `Handle::current().block_on()` directly, which is safe when called
+/// from a `spawn_blocking` thread (the blocking pool).
 fn is_python_model_ready() -> bool {
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            let client = grpc_client::get_grpc_client()?;
-            client.health().await
-        })
+    let result = tokio::runtime::Handle::current().block_on(async {
+        let client = grpc_client::get_grpc_client()?;
+        client.health().await
     });
 
     matches!(result, Ok(info) if info.ready)
@@ -359,12 +359,13 @@ fn start_chroma(port: u16) -> Result<(), SidecarError> {
 }
 
 /// Check whether Chroma is reachable by hitting the heartbeat endpoint.
+///
+/// Uses `Handle::current().block_on()` directly, which is safe when called
+/// from a `spawn_blocking` thread (the blocking pool).
 fn is_chroma_running(port: u16) -> bool {
     let client = chroma::client::get_client_with_port(port);
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async { client.heartbeat().await })
-    });
+    let result = tokio::runtime::Handle::current()
+        .block_on(async { client.heartbeat().await });
 
     result.is_ok()
 }

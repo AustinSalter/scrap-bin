@@ -96,7 +96,7 @@ pub fn estimate_tokens(text: &str) -> usize {
 /// Chroma metadata values must be scalars (string, int, float, bool), so
 /// arrays are joined into comma-separated strings.
 pub fn fragment_to_chroma_metadata(f: &Fragment) -> serde_json::Value {
-    serde_json::json!({
+    let mut meta = serde_json::json!({
         "id": f.id,
         "source_type": f.source_type.collection_name(),
         "source_path": f.source_path,
@@ -107,7 +107,21 @@ pub fn fragment_to_chroma_metadata(f: &Fragment) -> serde_json::Value {
         "content_hash": f.content_hash,
         "modified_at": f.modified_at,
         "cluster_id": f.cluster_id.unwrap_or(-1),
-    })
+    });
+
+    // Merge source-specific metadata. Chroma only supports scalar values,
+    // so skip nested objects and arrays.
+    if let serde_json::Value::Object(extras) = &f.metadata {
+        if let serde_json::Value::Object(ref mut map) = meta {
+            for (k, v) in extras {
+                if v.is_string() || v.is_number() || v.is_boolean() {
+                    map.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
+
+    meta
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +183,29 @@ mod tests {
         frag.cluster_id = None;
         let meta = fragment_to_chroma_metadata(&frag);
         assert_eq!(meta["cluster_id"], -1);
+    }
+
+    #[test]
+    fn test_fragment_to_chroma_metadata_merges_extras() {
+        let mut frag = sample_fragment();
+        frag.metadata = serde_json::json!({
+            "tweet_id": "12345",
+            "readwise_id": 42,
+            "is_reply": true,
+            "nested_obj": {"should": "be skipped"},
+            "array_val": [1, 2, 3],
+        });
+        let meta = fragment_to_chroma_metadata(&frag);
+
+        // Scalars are merged.
+        assert_eq!(meta["tweet_id"], "12345");
+        assert_eq!(meta["readwise_id"], 42);
+        assert_eq!(meta["is_reply"], true);
+        // Non-scalars are skipped.
+        assert!(meta.get("nested_obj").is_none());
+        assert!(meta.get("array_val").is_none());
+        // Base fields still present.
+        assert_eq!(meta["source_type"], "vault");
     }
 
     #[test]

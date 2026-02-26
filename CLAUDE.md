@@ -50,8 +50,8 @@ npm install
 npm run tauri dev
 
 # Python sidecar setup (separate terminal, for dev)
+pip install -e .
 cd sidecar
-pip install -r requirements.txt
 python -m grpc_tools.protoc -I../proto --python_out=. --grpc_python_out=. ../proto/sidecar.proto
 python server.py --port 50051
 ```

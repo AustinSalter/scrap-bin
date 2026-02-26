@@ -6,10 +6,9 @@ Uses HDBSCAN for density-based clustering of embedding vectors.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections import defaultdict
-
-import math
 
 import grpc
 import hdbscan
@@ -84,12 +83,17 @@ class ClusteringServiceServicer(sidecar_pb2_grpc.ClusteringServiceServicer):
         # Euclidean distance is equivalent to cosine distance for normalized
         # embeddings: d_euclidean = sqrt(2 - 2*cos_sim). nomic-embed-text
         # produces L2-normalized vectors, so euclidean is correct here.
-        clusterer = hdbscan.HDBSCAN(
-            min_cluster_size=min_cluster_size,
-            min_samples=min_samples,
-            metric="euclidean",
-        )
-        labels: np.ndarray = clusterer.fit_predict(vectors)
+        try:
+            clusterer = hdbscan.HDBSCAN(
+                min_cluster_size=min_cluster_size,
+                min_samples=min_samples,
+                metric="euclidean",
+            )
+            labels: np.ndarray = clusterer.fit_predict(vectors)
+        except Exception as exc:
+            logger.exception("HDBSCAN clustering failed")
+            context.abort(grpc.StatusCode.INTERNAL, f"HDBSCAN failed: {exc}")
+            return sidecar_pb2.ClusterResponse()
         elapsed = time.perf_counter() - start
 
         # Build cluster info.
@@ -203,15 +207,33 @@ class ClusteringServiceServicer(sidecar_pb2_grpc.ClusteringServiceServicer):
         start = time.perf_counter()
 
         n_neighbors = min(15, n - 1)
-        reducer = umap.UMAP(
-            n_components=2,
-            metric="cosine",
-            n_neighbors=n_neighbors,
-            random_state=42,
-        )
-        projected = reducer.fit_transform(vectors)
+        try:
+            reducer = umap.UMAP(
+                n_components=2,
+                metric="cosine",
+                n_neighbors=n_neighbors,
+                random_state=42,
+            )
+            projected = reducer.fit_transform(vectors)
+        except Exception as exc:
+            logger.exception("UMAP projection failed")
+            context.abort(grpc.StatusCode.INTERNAL, f"UMAP failed: {exc}")
+            return sidecar_pb2.ProjectResponse()
         elapsed = time.perf_counter() - start
         logger.info("UMAP projection complete in %.3fs", elapsed)
+
+        # Guard against NaN values in UMAP output.
+        if np.any(np.isnan(projected)):
+            logger.warning("UMAP produced NaN values, falling back to circle layout")
+            positions = []
+            for i, cid in enumerate(cluster_ids):
+                angle = 2 * math.pi * i / n
+                x = 0.5 + 0.35 * math.cos(angle)
+                y = 0.5 + 0.35 * math.sin(angle)
+                positions.append(
+                    sidecar_pb2.Position2D(cluster_id=cid, x=x, y=y)
+                )
+            return sidecar_pb2.ProjectResponse(positions=positions)
 
         # Normalize to [0.05, 0.95] range (5% padding).
         mins = projected.min(axis=0)

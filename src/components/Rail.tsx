@@ -16,6 +16,7 @@ export function Rail() {
         className={`rail-icon drag-region-exempt${activeRailIcon === 'landscape' ? ' active' : ''}`}
         onClick={goOverview}
         title="Landscape"
+        aria-label="Landscape overview"
       >
         ◎
       </button>
@@ -24,6 +25,7 @@ export function Rail() {
         className={`rail-icon drag-region-exempt${activeRailIcon === 'stream' ? ' active' : ''}${hasNewItems ? ' has-badge' : ''}`}
         onClick={toggleStream}
         title="Stream"
+        aria-label="Toggle stream panel"
       >
         ↓
       </button>
@@ -32,6 +34,7 @@ export function Rail() {
         className={`rail-icon drag-region-exempt${activeRailIcon === 'search' ? ' active' : ''}`}
         onClick={() => goThreaded()}
         title="Search"
+        aria-label="Search and threads"
       >
         ⌕
       </button>
@@ -41,6 +44,7 @@ export function Rail() {
       <button
         className={`rail-icon drag-region-exempt${activeRailIcon === 'settings' ? ' active' : ''}`}
         title="Settings"
+        aria-label="Settings"
       >
         ⚙
       </button>

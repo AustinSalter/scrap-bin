@@ -6,8 +6,7 @@ use ulid::Ulid;
 
 use crate::chroma::client::{get_client, ChromaError};
 use crate::chroma::collections::{
-    get_collection_id, COLLECTION_PODCASTS, COLLECTION_READWISE, COLLECTION_TWITTER,
-    COLLECTION_VAULT,
+    get_collection_id, COLLECTION_VAULT, CONTENT_COLLECTIONS,
 };
 use crate::chunker;
 use crate::fragment::{self, Fragment, SourceType};
@@ -81,14 +80,6 @@ pub struct CreateNoteResult {
     pub id: String,
     pub cluster_id: Option<i32>,
 }
-
-/// Content collections queried for recent fragments.
-const CONTENT_COLLECTIONS: &[&str] = &[
-    COLLECTION_VAULT,
-    COLLECTION_TWITTER,
-    COLLECTION_READWISE,
-    COLLECTION_PODCASTS,
-];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -191,7 +182,7 @@ pub async fn process_file(
     let chunks = chunker::chunk_markdown(&parsed, &relative_path);
 
     if chunks.is_empty() {
-        state::with_state(|s| {
+        state::with_state_no_flush(|s| {
             state::update_file_state(s, relative_path.clone(), file_hash.clone(), vec![]);
             Ok(())
         })
@@ -266,9 +257,9 @@ pub async fn process_file(
         )
         .await?;
 
-    // ---- 9. Update index state (locked) ------------------------------------
+    // ---- 9. Update index state (locked, no flush — caller batches) ---------
     let chunks_created = fragments.len();
-    state::with_state(|s| {
+    state::with_state_no_flush(|s| {
         state::update_file_state(s, relative_path.clone(), file_hash, ids.clone());
         Ok(())
     })
@@ -325,6 +316,9 @@ pub async fn pipeline_index_vault(
 
     let indexed_count = results.iter().filter(|r| !r.skipped).count();
     let total_chunks: usize = results.iter().map(|r| r.chunks_created).sum();
+
+    // Flush all accumulated state changes to disk in one write.
+    state::flush_state().map_err(|e| PipelineError::State(e.to_string()))?;
 
     tracing::info!(
         "Vault index complete: {}/{} files indexed, {} total chunks",
@@ -512,7 +506,8 @@ pub async fn pipeline_create_note(
 }
 
 /// Fetch recent fragments across all content collections, sorted by
-/// `modified_at` descending.
+/// `modified_at` descending. Bounded to the last 30 days to avoid
+/// fetching the entire database.
 #[tauri::command]
 pub async fn pipeline_get_recent(
     limit: Option<usize>,
@@ -520,6 +515,10 @@ pub async fn pipeline_get_recent(
     let client = get_client();
     let max_results = limit.unwrap_or(50);
     let mut fragments: Vec<serde_json::Value> = Vec::new();
+
+    // Only fetch fragments modified in the last 30 days.
+    let threshold = (chrono::Utc::now() - chrono::Duration::days(30)).to_rfc3339();
+    let where_filter = serde_json::json!({ "modified_at": { "$gte": threshold } });
 
     for coll_name in CONTENT_COLLECTIONS {
         let coll_id = match get_collection_id(coll_name).await {
@@ -531,7 +530,7 @@ pub async fn pipeline_get_recent(
             .get(
                 &coll_id,
                 None,
-                None,
+                Some(where_filter.clone()),
                 Some(vec![
                     "documents".to_string(),
                     "metadatas".to_string(),

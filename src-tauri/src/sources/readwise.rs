@@ -304,7 +304,7 @@ pub async fn source_readwise_import() -> Result<ReadwiseImportResult, SourceErro
 pub async fn source_readwise_configure(api_key: String) -> Result<(), SourceError> {
     let mut config = crate::config::load_config()?;
     config.readwise_api_key = Some(api_key);
-    crate::config::save_config(&config).map_err(|e| SourceError::Http(e.to_string()))?;
+    crate::config::save_config(&config)?;
     tracing::info!("Readwise API key saved to config");
     Ok(())
 }

@@ -111,7 +111,12 @@ pub fn config_get() -> Result<AppConfig, ConfigError> {
 }
 
 #[tauri::command]
-pub fn config_set(config: AppConfig) -> Result<(), ConfigError> {
+pub fn config_set(mut config: AppConfig) -> Result<(), ConfigError> {
+    // Preserve the real API key if the frontend sends back the redacted sentinel.
+    if config.readwise_api_key.as_deref() == Some("***") {
+        let existing = load_config()?;
+        config.readwise_api_key = existing.readwise_api_key;
+    }
     save_config(&config)
 }
 

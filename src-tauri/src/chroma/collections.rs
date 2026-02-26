@@ -23,6 +23,14 @@ pub const ALL_COLLECTIONS: &[&str] = &[
     COLLECTION_THREADS,
 ];
 
+/// Content collections (excludes metadata collections like clusters/threads).
+pub const CONTENT_COLLECTIONS: &[&str] = &[
+    COLLECTION_VAULT,
+    COLLECTION_TWITTER,
+    COLLECTION_READWISE,
+    COLLECTION_PODCASTS,
+];
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

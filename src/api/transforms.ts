@@ -13,11 +13,11 @@ import type {
 
 export function transformCluster(raw: Record<string, unknown>): ClusterView {
   return {
-    label: (raw.label as number) ?? -1,
-    displayLabel: (raw.display_label as string) ?? 'Unlabeled',
-    size: (raw.size as number) ?? 0,
-    pinned: (raw.pinned as boolean) ?? false,
-    fragmentIds: (raw.fragment_ids as string[]) ?? [],
+    label: typeof raw.label === 'number' ? raw.label : -1,
+    displayLabel: typeof raw.display_label === 'string' ? raw.display_label : 'Unlabeled',
+    size: typeof raw.size === 'number' ? raw.size : 0,
+    pinned: typeof raw.pinned === 'boolean' ? raw.pinned : false,
+    fragmentIds: Array.isArray(raw.fragment_ids) ? raw.fragment_ids : [],
   };
 }
 
@@ -50,8 +50,9 @@ function deriveSourceLabel(sourceType: SourceType, metadata: Record<string, unkn
 }
 
 export function transformFragment(raw: Record<string, unknown>): Fragment {
-  const metadata = (raw.metadata as Record<string, unknown>) ?? {};
-  const rawSourceType = (raw.source_type as string) ?? (metadata.source_type as string) ?? 'vault';
+  const metadata = (typeof raw.metadata === 'object' && raw.metadata !== null ? raw.metadata : {}) as Record<string, unknown>;
+  const rawSt = typeof raw.source_type === 'string' ? raw.source_type : (typeof metadata.source_type === 'string' ? metadata.source_type : 'vault');
+  const rawSourceType = rawSt;
   const sourceType = normalizeSourceType(rawSourceType);
 
   const tagsRaw = (metadata.tags as string) ?? '';
@@ -67,8 +68,8 @@ export function transformFragment(raw: Record<string, unknown>): Fragment {
   const isYourNote = (metadata.is_user_note as boolean) ?? false;
 
   return {
-    id: (raw.id as string) ?? '',
-    content: (raw.content as string) ?? '',
+    id: typeof raw.id === 'string' ? raw.id : '',
+    content: typeof raw.content === 'string' ? raw.content : '',
     sourceType,
     sourceLabel: deriveSourceLabel(sourceType, metadata),
     tags,
@@ -87,15 +88,15 @@ function parseClusterIdFromString(s: string): number {
 }
 
 export function transformThread(raw: Record<string, unknown>): ThreadView {
-  const sourceCluster = (raw.source_cluster as string) ?? '';
-  const targetCluster = (raw.target_cluster as string) ?? '';
+  const sourceCluster = typeof raw.source_cluster === 'string' ? raw.source_cluster : '';
+  const targetCluster = typeof raw.target_cluster === 'string' ? raw.target_cluster : '';
 
   return {
-    id: (raw.id as string) ?? '',
-    label: (raw.label as string) ?? '',
+    id: typeof raw.id === 'string' ? raw.id : '',
+    label: typeof raw.label === 'string' ? raw.label : '',
     sourceClusterId: parseClusterIdFromString(sourceCluster),
     targetClusterId: parseClusterIdFromString(targetCluster),
-    similarity: (raw.similarity as number) ?? 0,
+    similarity: typeof raw.similarity === 'number' ? raw.similarity : 0,
   };
 }
 
@@ -114,14 +115,14 @@ export function transformPositions(
 // ── Search Result ───────────────────────────────────────────
 
 export function transformSearchResult(raw: Record<string, unknown>): SearchResult {
-  const rawSourceType = (raw.source_type as string) ?? 'vault';
+  const rawSourceType = typeof raw.source_type === 'string' ? raw.source_type : 'vault';
   return {
-    id: (raw.id as string) ?? '',
-    content: (raw.content as string) ?? '',
+    id: typeof raw.id === 'string' ? raw.id : '',
+    content: typeof raw.content === 'string' ? raw.content : '',
     sourceType: normalizeSourceType(rawSourceType),
-    sourcePath: (raw.source_path as string) ?? '',
-    distance: (raw.distance as number) ?? Infinity,
-    metadata: (raw.metadata as Record<string, unknown>) ?? {},
+    sourcePath: typeof raw.source_path === 'string' ? raw.source_path : '',
+    distance: typeof raw.distance === 'number' ? raw.distance : Infinity,
+    metadata: (typeof raw.metadata === 'object' && raw.metadata !== null ? raw.metadata : {}) as Record<string, unknown>,
   };
 }
 

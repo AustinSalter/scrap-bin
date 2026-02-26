@@ -24,7 +24,13 @@ export function StreamItem({ item, isSelected }: Props) {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={classes} onClick={() => goBrowsing(item.clusterId)}>
+    <div
+      className={classes}
+      role="button"
+      tabIndex={0}
+      onClick={() => goBrowsing(item.clusterId)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBrowsing(item.clusterId); } }}
+    >
       <div className="stream-item-src">
         <span
           className="stream-item-dot"

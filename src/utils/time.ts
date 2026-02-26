@@ -1,4 +1,5 @@
 export function relativeTime(timestamp: number): string {
+  if (timestamp <= 0) return 'Unknown';
   const now = Date.now();
   const diff = now - timestamp;
   const seconds = Math.floor(diff / 1000);
@@ -16,6 +17,7 @@ export function relativeTime(timestamp: number): string {
 }
 
 function dayLabel(timestamp: number): string {
+  if (timestamp <= 0) return 'UNDATED';
   const now = new Date();
   const date = new Date(timestamp);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

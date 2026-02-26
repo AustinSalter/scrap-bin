@@ -3,21 +3,12 @@ use thiserror::Error;
 
 use crate::chroma::client::{get_client, ChromaError};
 use crate::chroma::collections::{
-    get_collection_id, COLLECTION_PODCASTS, COLLECTION_READWISE, COLLECTION_TWITTER,
-    COLLECTION_VAULT,
+    get_collection_id, CONTENT_COLLECTIONS,
 };
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/// Content collections that are searched by default.
-const DEFAULT_COLLECTIONS: &[&str] = &[
-    COLLECTION_VAULT,
-    COLLECTION_TWITTER,
-    COLLECTION_READWISE,
-    COLLECTION_PODCASTS,
-];
 
 const DEFAULT_N_RESULTS: usize = 10;
 
@@ -33,6 +24,8 @@ pub enum SearchError {
     EmptyQuery,
     #[error("No collections to search")]
     NoCollections,
+    #[error("Invalid collection name: {0}")]
+    InvalidCollectionName(String),
 }
 
 impl Serialize for SearchError {
@@ -77,7 +70,7 @@ pub struct SearchResult {
 fn resolve_search_collections(source_types: &Option<Vec<String>>) -> Vec<String> {
     match source_types {
         Some(types) if !types.is_empty() => types.clone(),
-        _ => DEFAULT_COLLECTIONS.iter().map(|s| s.to_string()).collect(),
+        _ => CONTENT_COLLECTIONS.iter().map(|s| s.to_string()).collect(),
     }
 }
 
@@ -230,7 +223,7 @@ pub async fn search_collection(
     }
 
     if !is_valid_collection_name(&collection) {
-        return Err(SearchError::NoCollections);
+        return Err(SearchError::InvalidCollectionName(collection));
     }
 
     let n_results = params.n_results.unwrap_or(DEFAULT_N_RESULTS);

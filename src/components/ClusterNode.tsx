@@ -170,12 +170,6 @@ export function ClusterNode({ cluster, x, y, isHighlighted }: Props) {
           {cluster.displayLabel}
         </div>
       )}
-      {!isEditing && cluster.size > 15 && (
-        <div className="c-node-sub">
-          {cluster.displayLabel === 'Compression' && 'information theory, mdl'}
-          {cluster.displayLabel === 'Alignment' && 'rlhf, legibility, scaling'}
-        </div>
-      )}
     </div>
   );
 }

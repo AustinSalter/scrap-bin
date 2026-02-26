@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { StreamItem } from './StreamItem';
 import { groupByDay } from '../utils/time';
@@ -8,8 +9,8 @@ export function StreamPanel() {
   const streamItems = useAppStore((s) => s.streamItems);
   const selectedClusterId = useAppStore((s) => s.selectedClusterId);
 
-  const newCount = streamItems.filter((i) => i.isNew).length;
-  const groups = groupByDay(streamItems);
+  const newCount = useMemo(() => streamItems.filter((i) => i.isNew).length, [streamItems]);
+  const groups = useMemo(() => groupByDay(streamItems), [streamItems]);
 
   return (
     <aside className={`stream${streamOpen ? ' is-open' : ''}`}>

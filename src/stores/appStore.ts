@@ -72,6 +72,9 @@ interface AppState {
   error: string | null;
   vaultPath: string | null;
 
+  // Internal state
+  _fragmentFetchGen: number;
+
   // Interaction state
   dragContext: DragContext | null;
   editingClusterId: number | null;
@@ -144,6 +147,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   error: null,
   vaultPath: null,
+
+  // Internal state
+  _fragmentFetchGen: 0,
 
   // Interaction state
   dragContext: null,
@@ -335,14 +341,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   fetchClusterFragments: async (clusterId) => {
-    set((s) => ({ loading: { ...s.loading, fragments: true } }));
+    const gen = get()._fragmentFetchGen + 1;
+    set((s) => ({ _fragmentFetchGen: gen, loading: { ...s.loading, fragments: true } }));
     try {
       const fragments = await clusteringGetFragments(clusterId);
+      if (get()._fragmentFetchGen !== gen) return; // stale
       set((s) => ({
         selectedClusterFragments: fragments,
         loading: { ...s.loading, fragments: false },
       }));
     } catch (e) {
+      if (get()._fragmentFetchGen !== gen) return; // stale
       const msg = e instanceof Error ? e.message : String(e);
       set((s) => ({
         error: `Failed to fetch fragments: ${msg}`,
@@ -374,8 +383,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ loading: { ...s.loading, recluster: true } }));
     try {
       const clusters = await clusteringRun();
-      const threads = await threadsDetect();
-      const positions = await clusteringGetPositions();
+      const [threads, positions] = await Promise.all([
+        threadsDetect(),
+        clusteringGetPositions(),
+      ]);
       set((s) => ({
         clusters,
         threads,

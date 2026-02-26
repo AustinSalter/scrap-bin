@@ -102,7 +102,7 @@ export function MarginPanel() {
             {fragments.length} fragments &middot; {sourceCount} sources &middot; {noteCount} notes
           </div>
         </div>
-        <button className="margin-close drag-region-exempt" onClick={clearSelection}>
+        <button className="margin-close drag-region-exempt" onClick={clearSelection} aria-label="Close">
           &times;
         </button>
       </div>

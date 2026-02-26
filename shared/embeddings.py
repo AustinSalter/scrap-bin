@@ -49,8 +49,8 @@ class EmbeddingModel:
 
         start = time.perf_counter()
         self.model = SentenceTransformer(model_name, device=self.device)
-        self.load_time = time.perf_counter() - start
-        self.dimension = self.model.get_sentence_embedding_dimension()
+        self.load_time: float = time.perf_counter() - start
+        self.dimension: int = self.model.get_sentence_embedding_dimension()
 
     def embed(self, text: str, normalize: bool = True) -> NDArray[np.float32]:
         """Embed a single text string."""

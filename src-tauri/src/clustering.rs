@@ -3,22 +3,9 @@ use thiserror::Error;
 
 use crate::chroma::client::{get_client, ChromaError};
 use crate::chroma::collections::{
-    get_collection_id, COLLECTION_CLUSTERS, COLLECTION_PODCASTS, COLLECTION_READWISE,
-    COLLECTION_TWITTER, COLLECTION_VAULT,
+    get_collection_id, COLLECTION_CLUSTERS, COLLECTION_VAULT, CONTENT_COLLECTIONS,
 };
 use crate::grpc_client::{get_grpc_client, GrpcError};
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/// Content collections eligible for clustering.
-const CONTENT_COLLECTIONS: &[&str] = &[
-    COLLECTION_VAULT,
-    COLLECTION_TWITTER,
-    COLLECTION_READWISE,
-    COLLECTION_PODCASTS,
-];
 
 // ---------------------------------------------------------------------------
 // Error type
