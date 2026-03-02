@@ -123,6 +123,7 @@ fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
                 content_hash: hash,
                 modified_at: modified_at.clone(),
                 cluster_id: None,
+                disposition: fragment::Disposition::Inbox,
                 metadata,
             }
         })
@@ -214,7 +215,7 @@ pub async fn source_twitter_import(path: String) -> Result<TwitterImportResult, 
     // Query Chroma for existing tweet IDs to deduplicate.
     let client = get_client();
     let coll_id = get_collection_id(COLLECTION_TWITTER).await?;
-    let existing_result = client.get(&coll_id, None, None, Some(vec!["metadatas".to_string()])).await;
+    let existing_result = client.get(&coll_id, None, None, Some(vec!["metadatas".to_string()]), None, None).await;
     let mut existing_ids = std::collections::HashSet::new();
     if let Ok(result) = existing_result {
         if let Some(metas) = &result.metadatas {

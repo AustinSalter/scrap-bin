@@ -249,3 +249,69 @@ pub fn watcher_get_vault_path() -> Option<String> {
         .as_ref()
         .map(|w| w.vault_path.to_string_lossy().to_string())
 }
+
+// ---------------------------------------------------------------------------
+// Vault info
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultInfo {
+    pub path: String,
+    pub file_count: usize,
+    pub folder_count: usize,
+    pub is_watching: bool,
+}
+
+fn count_vault_contents(dir: &Path) -> (usize, usize) {
+    let mut file_count: usize = 0;
+    let mut folder_count: usize = 0;
+    count_vault_recursive(dir, &mut file_count, &mut folder_count);
+    (file_count, folder_count)
+}
+
+fn count_vault_recursive(dir: &Path, file_count: &mut usize, folder_count: &mut usize) {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if should_ignore(&path) {
+            continue;
+        }
+        let ft = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        if ft.is_dir() {
+            *folder_count += 1;
+            count_vault_recursive(&path, file_count, folder_count);
+        } else if ft.is_file() {
+            *file_count += 1;
+        }
+    }
+}
+
+#[tauri::command]
+pub fn watcher_get_vault_info(vault_path: String) -> Result<VaultInfo, WatcherError> {
+    let path = PathBuf::from(&vault_path);
+    if !path.exists() || !path.is_dir() {
+        return Err(WatcherError::PathNotFound(vault_path));
+    }
+    let (file_count, folder_count) = count_vault_contents(&path);
+    let is_watching = VAULT_WATCHER
+        .read()
+        .as_ref()
+        .map(|w| w.vault_path == path)
+        .unwrap_or(false);
+    Ok(VaultInfo {
+        path: vault_path,
+        file_count,
+        folder_count,
+        is_watching,
+    })
+}

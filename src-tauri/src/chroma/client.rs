@@ -312,6 +312,8 @@ impl ChromaClient {
         ids: Option<Vec<String>>,
         where_filter: Option<serde_json::Value>,
         include: Option<Vec<String>>,
+        limit: Option<usize>,
+        offset: Option<usize>,
     ) -> Result<GetResult, ChromaError> {
         let url = format!("{}/{collection_id}/get", self.collections_url());
 
@@ -326,6 +328,12 @@ impl ChromaClient {
         if let Some(inc) = include {
             body["include"] = serde_json::json!(inc);
         }
+        if let Some(l) = limit {
+            body["limit"] = serde_json::json!(l);
+        }
+        if let Some(o) = offset {
+            body["offset"] = serde_json::json!(o);
+        }
 
         let resp = self.http.post(&url).json(&body).send().await?;
 
@@ -338,6 +346,17 @@ impl ChromaClient {
         resp.json::<GetResult>()
             .await
             .map_err(|e| ChromaError::Deserialize(e.to_string()))
+    }
+
+    /// Convenience wrapper around `update()` that only changes metadata.
+    pub async fn update_metadata(
+        &self,
+        collection_id: &str,
+        ids: Vec<String>,
+        metadatas: Vec<serde_json::Value>,
+    ) -> Result<(), ChromaError> {
+        self.update(collection_id, ids, None, None, Some(metadatas))
+            .await
     }
 
     /// GET /api/v2/.../collections/{id}/count

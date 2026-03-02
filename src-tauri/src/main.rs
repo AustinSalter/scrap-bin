@@ -80,6 +80,13 @@ fn main() {
             // Search
             search::search_all,
             search::search_collection,
+            // Fragment querying
+            search::list_fragments,
+            search::get_fragment,
+            search::get_disposition_counts,
+            search::get_inbox,
+            // Fragment mutation
+            pipeline::set_disposition,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
