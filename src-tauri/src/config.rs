@@ -85,6 +85,52 @@ pub fn chroma_persist_dir() -> Result<PathBuf, ConfigError> {
     Ok(app_data_dir()?.join("chroma"))
 }
 
+pub fn twitter_credentials_path() -> Result<PathBuf, ConfigError> {
+    Ok(app_data_dir()?.join("twitter_credentials.json"))
+}
+
+pub fn twitter_sync_path() -> Result<PathBuf, ConfigError> {
+    Ok(app_data_dir()?.join("twitter_sync.json"))
+}
+
+// --- Twitter credentials ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TwitterCredentials {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub user_id: String,
+    pub username: String,
+    pub expires_at: String,
+}
+
+pub fn load_twitter_credentials() -> Option<TwitterCredentials> {
+    let path = twitter_credentials_path().ok()?;
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+pub fn save_twitter_credentials(creds: &TwitterCredentials) -> Result<(), ConfigError> {
+    let path = twitter_credentials_path()?;
+    let data = serde_json::to_string_pretty(creds)?;
+    fs::write(&path, data)?;
+    // Set 0o600 permissions on unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
+pub fn delete_twitter_credentials() -> Result<(), ConfigError> {
+    let path = twitter_credentials_path()?;
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
 pub fn load_config() -> Result<AppConfig, ConfigError> {
     let path = config_path()?;
     if path.exists() {
