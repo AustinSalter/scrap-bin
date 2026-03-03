@@ -6,6 +6,7 @@ import {
   sourceReadwiseConfigure,
   sourceReadwiseCheckConnection,
   sourceTwitterAuthStart,
+  sourceTwitterCheckConnection,
   sourceAppleNotesCheck,
 } from '../../api/commands';
 import type { SourceConfig, SourceType, Disposition } from '../../types';
@@ -47,6 +48,7 @@ export function AddSourceModal({ onClose, onAdded }: AddSourceModalProps) {
   // Twitter
   const [twitterClientId, setTwitterClientId] = useState('');
   const [twitterAuthed, setTwitterAuthed] = useState(false);
+  const [twitterPolling, setTwitterPolling] = useState(false);
 
   // Apple Notes
   const [notesPath, setNotesPath] = useState('');
@@ -118,8 +120,26 @@ export function AddSourceModal({ onClose, onAdded }: AddSourceModalProps) {
     try {
       const result = await sourceTwitterAuthStart(twitterClientId);
       await open(result.auth_url);
-      setTwitterAuthed(true);
+      setTwitterPolling(true);
+      // Poll for connection status — the callback listener runs in the background
+      // and saves credentials when the user completes auth in the browser.
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          const info = await sourceTwitterCheckConnection(twitterClientId);
+          if (info.connected) {
+            setTwitterAuthed(true);
+            setTwitterPolling(false);
+            return;
+          }
+        } catch {
+          // keep polling
+        }
+      }
+      setTwitterPolling(false);
+      setError('Twitter authorization timed out. Please try again.');
     } catch (e) {
+      setTwitterPolling(false);
       setError(`Twitter auth failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
@@ -395,15 +415,21 @@ export function AddSourceModal({ onClose, onAdded }: AddSourceModalProps) {
                       className="btn-connect"
                       style={{ width: '100%' }}
                       onClick={handleTwitterAuth}
-                      disabled={!twitterClientId.trim()}
+                      disabled={!twitterClientId.trim() || twitterPolling || twitterAuthed}
                     >
-                      Authorize with Twitter
+                      {twitterPolling ? 'Waiting for authorization...' : twitterAuthed ? 'Authorized' : 'Authorize with Twitter'}
                     </button>
                   </div>
+                  {twitterPolling && (
+                    <div className="test-row">
+                      <div className="test-icon" style={{ background: 'var(--muted)' }}>…</div>
+                      <div className="test-text" style={{ color: 'var(--muted)' }}>Complete authorization in your browser</div>
+                    </div>
+                  )}
                   {twitterAuthed && (
                     <div className="test-row">
                       <div className="test-icon">✓</div>
-                      <div className="test-text">Authorization started — complete in browser</div>
+                      <div className="test-text">Connected to Twitter</div>
                     </div>
                   )}
                 </>

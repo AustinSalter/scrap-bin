@@ -34,6 +34,7 @@ export function SourceDrawer({ source, onClose, onSaved, onRemoved }: SourceDraw
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   // Twitter-specific
   const [twitterInfo, setTwitterInfo] = useState<TwitterConnectionInfo | null>(null);
@@ -56,7 +57,10 @@ export function SourceDrawer({ source, onClose, onSaved, onRemoved }: SourceDraw
   };
 
   const handleRemove = async () => {
-    if (!window.confirm(`Disconnect "${source.display_name}"? This cannot be undone.`)) return;
+    if (!confirmRemove) {
+      setConfirmRemove(true);
+      return;
+    }
     setRemoving(true);
     try {
       await removeSource(source.id);
@@ -302,11 +306,12 @@ export function SourceDrawer({ source, onClose, onSaved, onRemoved }: SourceDraw
 
         <div className="drawer-footer">
           <button
-            className="btn-secondary"
+            className={`btn-secondary${confirmRemove ? ' confirm-remove' : ''}`}
             onClick={handleRemove}
+            onBlur={() => setConfirmRemove(false)}
             disabled={removing}
           >
-            {removing ? 'Removing...' : 'Disconnect'}
+            {removing ? 'Removing...' : confirmRemove ? 'Confirm Disconnect' : 'Disconnect'}
           </button>
           <button
             className="btn-primary"

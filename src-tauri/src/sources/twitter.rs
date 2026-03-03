@@ -168,6 +168,47 @@ struct PendingAuth {
 
 static PENDING_AUTH: Mutex<Option<PendingAuth>> = Mutex::new(None);
 
+/// Whether the persistent callback listener has been started.
+static LISTENER_STARTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+const CALLBACK_HOST: &str = "tidepool-callback";
+const CALLBACK_PORT: u16 = 9876;
+
+/// Starts the persistent OAuth callback listener on port 9876.
+/// This runs for the lifetime of the app and handles all Twitter OAuth callbacks.
+/// Safe to call multiple times — only the first call actually binds.
+fn ensure_callback_listener() {
+    if LISTENER_STARTED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return; // already started
+    }
+    tokio::spawn(async {
+        let listener = match tokio::net::TcpListener::bind(format!("127.0.0.1:{}", CALLBACK_PORT)).await {
+            Ok(l) => l,
+            Err(e) => {
+                tracing::error!("Failed to bind OAuth callback listener on port {}: {}", CALLBACK_PORT, e);
+                LISTENER_STARTED.store(false, std::sync::atomic::Ordering::SeqCst);
+                return;
+            }
+        };
+        tracing::info!("OAuth callback listener started on port {}", CALLBACK_PORT);
+        loop {
+            match listener.accept().await {
+                Ok((stream, _addr)) => {
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_callback_connection(stream).await {
+                            tracing::error!("OAuth callback error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    tracing::error!("OAuth listener accept error: {}", e);
+                }
+            }
+        }
+    });
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthStartResult {
     pub auth_url: String,
@@ -183,14 +224,12 @@ pub async fn source_twitter_auth_start(
     let auth_url_str = "https://twitter.com/i/oauth2/authorize";
     let token_url_str = "https://api.twitter.com/2/oauth2/token";
 
-    // Bind a TCP listener to a random available port for the callback
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .map_err(|e| SourceError::OAuth(format!("Failed to bind callback listener: {}", e)))?;
-    let local_addr = listener
-        .local_addr()
-        .map_err(|e| SourceError::OAuth(format!("Failed to get local addr: {}", e)))?;
-    let redirect_uri = format!("http://127.0.0.1:{}", local_addr.port());
+    // Ensure the persistent callback listener is running.
+    // Twitter rejects localhost/127.0.0.1 as callback URLs, so we use a custom
+    // hostname mapped to 127.0.0.1 in /etc/hosts. Register the exact redirect
+    // URI "http://tidepool-callback:9876" in the Twitter developer portal.
+    ensure_callback_listener();
+    let redirect_uri = format!("http://{}:{}", CALLBACK_HOST, CALLBACK_PORT);
 
     // Generate PKCE challenge
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -233,33 +272,15 @@ pub async fn source_twitter_auth_start(
         });
     }
 
-    // Spawn background task to listen for callback
-    tokio::spawn(async move {
-        if let Err(e) = listen_for_callback(listener).await {
-            tracing::error!("OAuth callback listener error: {}", e);
-        }
-    });
-
     Ok(AuthStartResult {
         auth_url: auth_url.to_string(),
         state: state_str,
     })
 }
 
-/// Listens for the OAuth callback on the TCP listener.
-async fn listen_for_callback(listener: tokio::net::TcpListener) -> Result<(), SourceError> {
+/// Handles a single OAuth callback connection. Always sends an HTTP response.
+async fn handle_callback_connection(mut stream: tokio::net::TcpStream) -> Result<(), SourceError> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    // Wait up to 5 minutes for the callback
-    let accept_result = tokio::time::timeout(
-        std::time::Duration::from_secs(300),
-        listener.accept(),
-    )
-    .await
-    .map_err(|_| SourceError::OAuth("OAuth callback timed out after 5 minutes".to_string()))?
-    .map_err(|e| SourceError::OAuth(format!("Failed to accept connection: {}", e)))?;
-
-    let (mut stream, _addr) = accept_result;
 
     // Read the HTTP request
     let mut buf = vec![0u8; 4096];
@@ -276,6 +297,13 @@ async fn listen_for_callback(listener: tokio::net::TcpListener) -> Result<(), So
         .nth(1)
         .unwrap_or("/");
 
+    // Ignore favicon and other non-callback requests
+    if path.starts_with("/favicon") || (!path.contains("code=") && !path.contains("state=")) {
+        let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+        let _ = stream.write_all(response.as_bytes()).await;
+        return Ok(());
+    }
+
     // Parse query string
     let query_string = path.split('?').nth(1).unwrap_or("");
     let params: HashMap<String, String> =
@@ -286,26 +314,48 @@ async fn listen_for_callback(listener: tokio::net::TcpListener) -> Result<(), So
     let code = params.get("code").cloned();
     let state = params.get("state").cloned();
 
-    // Retrieve and clear pending auth
-    let pending = {
+    // Retrieve pending auth — peek first, only take if state matches.
+    // The lock must be dropped before any .await, so we resolve to an enum.
+    enum AuthLookup {
+        Matched(PendingAuth),
+        Mismatch,
+        NoPending,
+    }
+    let lookup = {
         let mut guard = PENDING_AUTH.lock();
-        guard.take()
+        match guard.as_ref() {
+            Some(p) if state.as_deref() == Some(&p.csrf_state) => {
+                AuthLookup::Matched(guard.take().unwrap())
+            }
+            Some(_) => AuthLookup::Mismatch,
+            None => AuthLookup::NoPending,
+        }
+    }; // guard dropped here
+
+    let pending = match lookup {
+        AuthLookup::Matched(p) => p,
+        AuthLookup::Mismatch => {
+            tracing::warn!("OAuth callback with mismatched state, ignoring");
+            let response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Failed</h1><p>Stale or invalid callback. Please try authorizing again from Scrapbin.</p></body></html>";
+            let _ = stream.write_all(response.as_bytes()).await;
+            return Ok(());
+        }
+        AuthLookup::NoPending => {
+            tracing::debug!("OAuth callback but no pending auth state");
+            let response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>No Pending Authorization</h1><p>Start the authorization flow from Scrapbin first.</p></body></html>";
+            let _ = stream.write_all(response.as_bytes()).await;
+            return Ok(());
+        }
     };
 
-    let pending = pending.ok_or_else(|| {
-        SourceError::OAuth("No pending auth state found".to_string())
-    })?;
-
-    // Validate state
-    if state.as_deref() != Some(&pending.csrf_state) {
-        let response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Failed</h1><p>CSRF state mismatch. Please try again.</p></body></html>";
-        let _ = stream.write_all(response.as_bytes()).await;
-        return Err(SourceError::OAuth("CSRF state mismatch".to_string()));
-    }
-
-    let code = code.ok_or_else(|| {
-        SourceError::OAuth("No authorization code in callback".to_string())
-    })?;
+    let code = match code {
+        Some(c) => c,
+        None => {
+            let response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Failed</h1><p>No authorization code received. Please try again.</p></body></html>";
+            let _ = stream.write_all(response.as_bytes()).await;
+            return Err(SourceError::OAuth("No authorization code in callback".to_string()));
+        }
+    };
 
     // Exchange code for tokens
     match exchange_code_for_tokens(

@@ -215,6 +215,11 @@
   border-color: var(--muted);
 }
 
+.btn-secondary.confirm-remove {
+  border-color: var(--err);
+  color: var(--err);
+}
+
 /* ── Readwise feeds display ────────────────────────── */
 
 .readwise-feeds {
