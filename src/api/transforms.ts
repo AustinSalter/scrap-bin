@@ -8,6 +8,7 @@ import type {
   SourceType,
   ServiceHealth,
 } from '../types';
+import type { SidecarStatus, PipelineStats } from './commands';
 
 // ── Cluster ─────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export function transformCluster(raw: Record<string, unknown>): ClusterView {
 
 function normalizeSourceType(raw: string): SourceType {
   if (raw === 'podcasts') return 'podcast';
-  if (raw === 'vault' || raw === 'twitter' || raw === 'readwise' || raw === 'podcast') {
+  if (raw === 'vault' || raw === 'twitter' || raw === 'readwise' || raw === 'podcast' || raw === 'rss' || raw === 'apple_notes') {
     return raw as SourceType;
   }
   return 'vault';
@@ -46,6 +47,8 @@ function deriveSourceLabel(sourceType: SourceType, metadata: Record<string, unkn
       const path = metadata.source_path as string | undefined;
       return path ? path.replace(/\.[^.]+$/, '') : 'Podcast';
     }
+    case 'rss': return 'RSS';
+    case 'apple_notes': return 'Apple Notes';
   }
 }
 
@@ -127,16 +130,6 @@ export function transformSearchResult(raw: Record<string, unknown>): SearchResul
 }
 
 // ── Status ──────────────────────────────────────────────────
-
-interface SidecarStatus {
-  chroma_running: boolean;
-  python_running: boolean;
-  python_model_ready: boolean;
-}
-
-interface PipelineStats {
-  total_chunks: number;
-}
 
 export function deriveStatusData(
   sidecarStatus: SidecarStatus | null,

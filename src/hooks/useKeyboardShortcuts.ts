@@ -7,11 +7,24 @@ export function useKeyboardShortcuts() {
   const marginOpen = useAppStore((s) => s.marginOpen);
   const clearSelection = useAppStore((s) => s.clearSelection);
   const recluster = useAppStore((s) => s.recluster);
+  const activeView = useAppStore((s) => s.activeView);
+  const setActiveView = useAppStore((s) => s.setActiveView);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Escape — close margin, or return to overview
+      // ⌘, — toggle settings
+      if (e.key === ',' && e.metaKey) {
+        e.preventDefault();
+        setActiveView(activeView === 'settings' ? 'landscape' : 'settings');
+        return;
+      }
+
+      // Escape — close settings, close margin, or return to overview
       if (e.key === 'Escape') {
+        if (activeView === 'settings') {
+          setActiveView('landscape');
+          return;
+        }
         if (marginOpen) {
           clearSelection();
         } else {
@@ -40,5 +53,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goOverview, goThreaded, marginOpen, clearSelection, recluster]);
+  }, [goOverview, goThreaded, marginOpen, clearSelection, recluster, activeView, setActiveView]);
 }

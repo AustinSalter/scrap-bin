@@ -35,11 +35,16 @@ fn main() {
             config::config_get,
             config::config_set,
             config::config_get_data_dir,
+            config::list_sources,
+            config::add_source,
+            config::update_source,
+            config::remove_source,
             // Watcher
             watcher::watcher_start,
             watcher::watcher_stop,
             watcher::watcher_is_active,
             watcher::watcher_get_vault_path,
+            watcher::watcher_get_vault_info,
             // Sidecar management
             sidecar::sidecar_start_all,
             sidecar::sidecar_stop_all,

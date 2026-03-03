@@ -1,5 +1,22 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ClusterView, Fragment, ThreadView, SearchResult } from '../types';
+import type {
+  ClusterView,
+  Fragment,
+  ThreadView,
+  SearchResult,
+  SourceConfig,
+  VaultInfo,
+  TestSourceResult,
+  SyncSourceResult,
+  AuthStartResult,
+  TwitterConnectionInfo,
+  TwitterSyncResult,
+  ReadwiseImportResult,
+  RssAddFeedResult,
+  RssPollResult,
+  RssCheckResult,
+  AppleNotesScanResult,
+} from '../types';
 import {
   transformCluster,
   transformFragment,
@@ -172,7 +189,100 @@ export async function watcherStart(vaultPath: string): Promise<void> {
   return invoke('watcher_start', { vaultPath });
 }
 
-// TODO: Wire up to UI (e.g. settings panel) or remove if unneeded.
 export async function watcherStop(): Promise<void> {
   return invoke('watcher_stop');
+}
+
+export async function watcherGetVaultInfo(vaultPath: string): Promise<VaultInfo> {
+  return invoke<VaultInfo>('watcher_get_vault_info', { vaultPath });
+}
+
+export async function watcherIsActive(): Promise<boolean> {
+  return invoke<boolean>('watcher_is_active');
+}
+
+// ── Source CRUD ──────────────────────────────────────────────
+
+export async function listSources(): Promise<SourceConfig[]> {
+  return invoke<SourceConfig[]>('list_sources');
+}
+
+export async function addSource(source: SourceConfig): Promise<void> {
+  return invoke('add_source', { source });
+}
+
+export async function updateSource(source: SourceConfig): Promise<void> {
+  return invoke('update_source', { source });
+}
+
+export async function removeSource(id: string): Promise<void> {
+  return invoke('remove_source', { id });
+}
+
+// ── Source dispatchers ───────────────────────────────────────
+
+export async function testSource(sourceId: string): Promise<TestSourceResult> {
+  return invoke<TestSourceResult>('test_source', { sourceId });
+}
+
+export async function syncSource(sourceId: string): Promise<SyncSourceResult> {
+  return invoke<SyncSourceResult>('sync_source', { sourceId });
+}
+
+// ── Twitter ──────────────────────────────────────────────────
+
+export async function sourceTwitterAuthStart(clientId: string): Promise<AuthStartResult> {
+  return invoke<AuthStartResult>('source_twitter_auth_start', { clientId });
+}
+
+export async function sourceTwitterCheckConnection(clientId?: string): Promise<TwitterConnectionInfo> {
+  return invoke<TwitterConnectionInfo>('source_twitter_check_connection', { clientId: clientId ?? null });
+}
+
+export async function sourceTwitterSync(clientId: string): Promise<TwitterSyncResult> {
+  return invoke<TwitterSyncResult>('source_twitter_sync', { clientId });
+}
+
+// ── Readwise ─────────────────────────────────────────────────
+
+export async function sourceReadwiseConfigure(apiKey: string): Promise<void> {
+  return invoke('source_readwise_configure', { apiKey });
+}
+
+export async function sourceReadwiseCheckConnection(): Promise<boolean> {
+  return invoke<boolean>('source_readwise_check_connection');
+}
+
+export async function sourceReadwiseImport(): Promise<ReadwiseImportResult> {
+  return invoke<ReadwiseImportResult>('source_readwise_import');
+}
+
+// ── RSS ──────────────────────────────────────────────────────
+
+export async function sourceRssAddFeed(url: string): Promise<RssAddFeedResult> {
+  return invoke<RssAddFeedResult>('source_rss_add_feed', { url });
+}
+
+export async function sourceRssPoll(sourceId: string): Promise<RssPollResult> {
+  return invoke<RssPollResult>('source_rss_poll', { sourceId });
+}
+
+export async function sourceRssCheckConnection(sourceId: string): Promise<RssCheckResult> {
+  return invoke<RssCheckResult>('source_rss_check_connection', { sourceId });
+}
+
+// ── Apple Notes ──────────────────────────────────────────────
+
+export async function sourceAppleNotesScan(path: string): Promise<AppleNotesScanResult> {
+  return invoke<AppleNotesScanResult>('source_apple_notes_scan', { path });
+}
+
+export async function sourceAppleNotesCheck(path: string): Promise<AppleNotesScanResult> {
+  return invoke<AppleNotesScanResult>('source_apple_notes_check', { path });
+}
+
+// ── Pipeline (additional) ────────────────────────────────────
+
+export async function pipelineIndexVault(): Promise<void> {
+  return invoke('pipeline_index_vault');
 }

@@ -34,6 +34,7 @@ import {
 
 export type UIState = 'overview' | 'browsing' | 'threaded';
 export type RailIcon = 'landscape' | 'stream' | 'search' | 'settings';
+export type ActiveView = 'landscape' | 'settings';
 
 interface LoadingState {
   clusters: boolean;
@@ -51,6 +52,7 @@ interface DragContext {
 }
 
 interface AppState {
+  activeView: ActiveView;
   uiState: UIState;
   streamOpen: boolean;
   marginOpen: boolean;
@@ -82,6 +84,7 @@ interface AppState {
   highlightedClusterIds: number[];
 
   // Sync actions
+  setActiveView: (view: ActiveView) => void;
   goOverview: () => void;
   goBrowsing: (clusterId: number) => void;
   goThreaded: (threadId?: string) => void;
@@ -120,6 +123,7 @@ const defaultStatus: StatusData = {
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
+  activeView: 'landscape',
   uiState: 'overview',
   streamOpen: false,
   marginOpen: false,
@@ -159,8 +163,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── Sync actions ──────────────────────────────────────────
 
+  setActiveView: (view) =>
+    set({
+      activeView: view,
+      activeRailIcon: view === 'settings' ? 'settings' : 'landscape',
+    }),
+
   goOverview: () =>
     set({
+      activeView: 'landscape',
       uiState: 'overview',
       streamOpen: false,
       marginOpen: false,
@@ -173,6 +184,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   goBrowsing: (clusterId) => {
     set({
+      activeView: 'landscape',
       uiState: 'browsing',
       streamOpen: true,
       marginOpen: true,
@@ -193,6 +205,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
     set({
+      activeView: 'landscape',
       uiState: 'threaded',
       streamOpen: false,
       marginOpen: false,

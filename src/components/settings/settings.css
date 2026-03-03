@@ -1,0 +1,429 @@
+.settings-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-header {
+  padding: 20px 32px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px 40px;
+}
+
+/* ── Sections ──────────────────────────────────────── */
+
+.settings-section {
+  padding: 28px 0;
+  border-bottom: 1px solid var(--bg3);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ghost);
+}
+
+.section-action {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 500;
+  background: none;
+  border: none;
+}
+
+.section-action:hover {
+  text-decoration: underline;
+}
+
+/* ── Vault Card ────────────────────────────────────── */
+
+.vault-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 16px 20px;
+}
+
+.vault-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vault-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #5b8def, #4a7cd4);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.vault-info {
+  flex: 1;
+}
+
+.vault-name {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--primary);
+}
+
+.vault-path {
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.vault-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--ok);
+}
+
+.vault-status .dot {
+  width: 7px;
+  height: 7px;
+  background: var(--ok);
+  border-radius: 50%;
+}
+
+.vault-status.inactive {
+  color: var(--ghost);
+}
+
+.vault-status.inactive .dot {
+  background: var(--ghost);
+}
+
+.vault-meta {
+  display: flex;
+  gap: 20px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--bg3);
+}
+
+.vault-stat {
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vault-stat strong {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.filter-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  font-family: 'Cousine', monospace;
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--bg);
+}
+
+.scope-hint {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--ghost);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* ── Source List ────────────────────────────────────── */
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.source-item:hover {
+  background: var(--bg2);
+}
+
+.source-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.source-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-name {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.source-detail {
+  font-family: 'Cousine', monospace;
+  font-size: 11px;
+  color: var(--ghost);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-disposition {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.source-disposition.signal {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.source-disposition.inbox {
+  color: var(--muted);
+  background: var(--bg3);
+}
+
+.source-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.source-status.connected {
+  background: var(--ok);
+}
+
+.source-status.disconnected {
+  background: var(--border);
+}
+
+.source-note {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--ghost);
+  line-height: 1.5;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border-radius: 7px;
+}
+
+.source-note strong {
+  color: var(--muted);
+}
+
+/* ── Embed Card ────────────────────────────────────── */
+
+.embed-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.embed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.embed-row:last-child {
+  margin-bottom: 0;
+}
+
+.embed-label {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  color: var(--primary);
+}
+
+.embed-value {
+  font-family: 'Cousine', monospace;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.embed-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-outline {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  border-color: var(--muted);
+  background: var(--bg2);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Toggle ────────────────────────────────────────── */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.toggle-row-label {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  color: var(--primary);
+}
+
+.toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  border: none;
+}
+
+.toggle.on {
+  background: var(--accent);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.toggle.on::after {
+  transform: translateX(16px);
+}
+
+/* ── Collection breakdown ──────────────────────────── */
+
+.collection-list {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bg3);
+}
+
+.collection-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.collection-name {
+  font-family: 'Cousine', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.collection-count {
+  font-family: 'Cousine', monospace;
+  font-size: 11px;
+  color: var(--ghost);
+}
