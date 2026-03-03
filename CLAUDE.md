@@ -131,6 +131,8 @@ scrapbin/
 | `podcasts` | Podcast transcript chunks |
 | `clusters` | Cluster metadata (label, members, centroid) |
 | `threads` | Thread metadata (connections, labels) |
+| `rss` | RSS / Atom feed entry chunks |
+| `apple_notes` | Apple Notes chunks |
 
 ## Design Reference
 

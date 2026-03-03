@@ -57,6 +57,7 @@ pub struct RssAddFeedResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RssPollResult {
     pub imported: usize,
+    pub skipped: usize,
     pub entries_fetched: usize,
     pub feed_title: String,
 }
@@ -85,7 +86,10 @@ pub fn normalize_feed_url(url: &str) -> String {
 
 /// Fetches and parses a feed from a URL, returning the parsed feed model.
 async fn fetch_and_parse_feed(url: &str) -> Result<feed_rs::model::Feed, SourceError> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .user_agent("Scrapbin/0.1")
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
     let resp = client.get(url).send().await?;
 
     if !resp.status().is_success() {
@@ -345,18 +349,33 @@ pub async fn source_rss_poll(source_id: String) -> Result<RssPollResult, SourceE
         all_fragments.extend(frags);
     }
 
-    // Dedup by content_hash against existing collection.
-    // (Simple approach: deduplicate within the batch by hash.)
+    // Dedup within the batch by content_hash.
     let mut seen_hashes = std::collections::HashSet::new();
     all_fragments.retain(|f| seen_hashes.insert(f.content_hash.clone()));
 
+    // Dedup against existing Chroma collection (mirrors the Twitter pattern).
+    let client = get_client();
+    let coll_id = get_collection_id(COLLECTION_RSS).await?;
+    let existing_result = client
+        .get(&coll_id, None, None, Some(vec!["metadatas".to_string()]), None, None)
+        .await;
+    if let Ok(result) = existing_result {
+        if let Some(metas) = &result.metadatas {
+            let existing_hashes: std::collections::HashSet<String> = metas
+                .iter()
+                .flatten()
+                .filter_map(|m| m.get("content_hash").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                .collect();
+            all_fragments.retain(|f| !existing_hashes.contains(&f.content_hash));
+        }
+    }
+
+    let skipped = entries_fetched - all_fragments.len();
     let imported = all_fragments.len();
 
     // Embed and store.
     if !all_fragments.is_empty() {
         let grpc = get_grpc_client()?;
-        let client = get_client();
-        let coll_id = get_collection_id(COLLECTION_RSS).await?;
 
         let texts: Vec<String> = all_fragments.iter().map(|f| f.content.clone()).collect();
         let embeddings = grpc.embed_batch(texts).await?;
@@ -383,6 +402,7 @@ pub async fn source_rss_poll(source_id: String) -> Result<RssPollResult, SourceE
 
     Ok(RssPollResult {
         imported,
+        skipped,
         entries_fetched,
         feed_title,
     })
@@ -406,6 +426,7 @@ pub async fn source_rss_poll_all() -> Result<Vec<RssPollResult>, SourceError> {
                 tracing::warn!("Failed to poll RSS feed {}: {}", source.display_name, e);
                 results.push(RssPollResult {
                     imported: 0,
+                    skipped: 0,
                     entries_fetched: 0,
                     feed_title: source.display_name.clone(),
                 });

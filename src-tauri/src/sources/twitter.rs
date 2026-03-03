@@ -164,7 +164,6 @@ struct PendingAuth {
     csrf_state: String,
     redirect_uri: String,
     client_id: String,
-    listener_addr: std::net::SocketAddr,
 }
 
 static PENDING_AUTH: Mutex<Option<PendingAuth>> = Mutex::new(None);
@@ -223,12 +222,14 @@ pub async fn source_twitter_auth_start(
     // Store pending auth state
     {
         let mut pending = PENDING_AUTH.lock();
+        if pending.is_some() {
+            tracing::warn!("Overwriting existing pending Twitter auth state — previous auth flow will be abandoned");
+        }
         *pending = Some(PendingAuth {
             pkce_verifier: pkce_verifier.secret().clone(),
             csrf_state: state_str.clone(),
             redirect_uri: redirect_uri.clone(),
             client_id: client_id.clone(),
-            listener_addr: local_addr,
         });
     }
 
@@ -277,18 +278,10 @@ async fn listen_for_callback(listener: tokio::net::TcpListener) -> Result<(), So
 
     // Parse query string
     let query_string = path.split('?').nth(1).unwrap_or("");
-    let params: HashMap<String, String> = query_string
-        .split('&')
-        .filter_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            let key = parts.next()?;
-            let value = parts.next().unwrap_or("");
-            Some((
-                urldecode(key),
-                urldecode(value),
-            ))
-        })
-        .collect();
+    let params: HashMap<String, String> =
+        url::form_urlencoded::parse(query_string.as_bytes())
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
 
     let code = params.get("code").cloned();
     let state = params.get("state").cloned();
@@ -336,27 +329,6 @@ async fn listen_for_callback(listener: tokio::net::TcpListener) -> Result<(), So
             Err(e)
         }
     }
-}
-
-/// Simple URL decoding (handles %XX sequences including multi-byte UTF-8, and +).
-fn urldecode(s: &str) -> String {
-    let s = s.replace('+', " ");
-    let mut bytes = Vec::with_capacity(s.len());
-    let mut chars = s.chars();
-    while let Some(c) = chars.next() {
-        if c == '%' {
-            let hex: String = chars.by_ref().take(2).collect();
-            if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                bytes.push(byte);
-            } else {
-                bytes.push(b'%');
-                bytes.extend_from_slice(hex.as_bytes());
-            }
-        } else {
-            bytes.extend_from_slice(c.to_string().as_bytes());
-        }
-    }
-    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 /// Exchanges an authorization code for tokens, fetches user info, and saves credentials.
