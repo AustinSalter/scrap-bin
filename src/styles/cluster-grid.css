@@ -1,0 +1,114 @@
+/* ── Cluster Grid View ───────────────────────────────── */
+
+.cluster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cluster-grid-loading,
+.cluster-grid-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Cluster cell card */
+.cluster-cell {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cluster-cell:hover {
+  border-color: var(--border2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.cluster-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cluster-cell-bar {
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cluster-cell-name {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cluster-cell-count {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Fragment previews inside cell */
+.cluster-cell-fragments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fragment-preview {
+  padding: 8px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.fragment-preview-source {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-bottom: 3px;
+}
+
+.fragment-preview-text {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cluster-cell-more {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  text-align: center;
+  margin-top: 6px;
+  padding: 4px 0;
+}

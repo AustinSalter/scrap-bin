@@ -8,6 +8,8 @@ export function Toolbar() {
   const recluster = useAppStore((s) => s.recluster);
   const loading = useAppStore((s) => s.loading);
   const searchQuery = useAppStore((s) => s.searchQuery);
+  const clusterViewMode = useAppStore((s) => s.clusterViewMode);
+  const setClusterViewMode = useAppStore((s) => s.setClusterViewMode);
   const { debouncedSearch, clearSearch } = useSearch();
 
   const [inputValue, setInputValue] = useState(searchQuery);
@@ -40,6 +42,23 @@ export function Toolbar() {
           }}
         />
         <kbd className="search-key">⌘K</kbd>
+      </div>
+
+      <div className="toolbar-toggle">
+        <button
+          className={`toolbar-toggle-btn${clusterViewMode === 'landscape' ? ' is-active' : ''}`}
+          onClick={() => setClusterViewMode('landscape')}
+          title="Landscape view"
+        >
+          {'\u25CE'}
+        </button>
+        <button
+          className={`toolbar-toggle-btn${clusterViewMode === 'grid' ? ' is-active' : ''}`}
+          onClick={() => setClusterViewMode('grid')}
+          title="Grid view"
+        >
+          {'\u25A6'}
+        </button>
       </div>
 
       <button

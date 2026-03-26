@@ -63,9 +63,12 @@ interface DragContext {
   fromCluster?: number;
 }
 
+export type ClusterViewMode = 'landscape' | 'grid';
+
 interface AppState {
   activeView: ActiveView;
   uiState: UIState;
+  clusterViewMode: ClusterViewMode;
   streamOpen: boolean;
   marginOpen: boolean;
   selectedClusterId: number | null;
@@ -137,6 +140,7 @@ interface AppState {
   clearDragContext: () => void;
   setEditingCluster: (id: number | null) => void;
   setEditingThread: (id: string | null) => void;
+  setClusterViewMode: (mode: ClusterViewMode) => void;
 
   // Inbox triage actions
   goInboxTriage: () => void;
@@ -184,6 +188,7 @@ const defaultStatus: StatusData = {
 export const useAppStore = create<AppState>((set, get) => ({
   activeView: 'landscape',
   uiState: 'overview',
+  clusterViewMode: 'landscape',
   streamOpen: false,
   marginOpen: false,
   selectedClusterId: null,
@@ -336,6 +341,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearDragContext: () => set({ dragContext: null }),
   setEditingCluster: (id) => set({ editingClusterId: id }),
   setEditingThread: (id) => set({ editingThreadId: id }),
+  setClusterViewMode: (mode) => set({ clusterViewMode: mode }),
 
   // ── Inbox triage actions ──────────────────────────────
 
