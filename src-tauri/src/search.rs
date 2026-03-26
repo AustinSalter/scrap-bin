@@ -6,6 +6,7 @@ use crate::chroma::collections::{
     get_collection_id, CONTENT_COLLECTIONS,
 };
 use crate::fragment::{chroma_to_fragment, Fragment, SourceType};
+use crate::grpc_client::{get_grpc_client, GrpcError};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -21,6 +22,8 @@ const DEFAULT_N_RESULTS: usize = 10;
 pub enum SearchError {
     #[error("Chroma error: {0}")]
     Chroma(#[from] ChromaError),
+    #[error("gRPC error: {0}")]
+    Grpc(#[from] GrpcError),
     #[error("Empty query")]
     EmptyQuery,
     #[error("No collections to search")]
@@ -80,7 +83,7 @@ fn resolve_search_collections(source_types: &Option<Vec<String>>) -> Vec<String>
 /// Query a single collection and return a vec of SearchResult.
 async fn query_single_collection(
     collection_name: &str,
-    query: &str,
+    query_embedding: &[f32],
     n_results: usize,
     cluster_id: Option<i32>,
 ) -> Result<Vec<SearchResult>, SearchError> {
@@ -96,8 +99,8 @@ async fn query_single_collection(
     let result = client
         .query(
             &coll_id,
-            Some(vec![query.to_string()]),
             None,
+            Some(vec![query_embedding.to_vec()]),
             n_results,
             where_filter,
         )
@@ -163,8 +166,8 @@ async fn query_single_collection(
 /// Search across all specified collections (or all content collections by
 /// default), merge results sorted by distance, and return the top `n_results`.
 ///
-/// Uses Chroma's `query_texts` endpoint, which handles embedding internally
-/// -- no Python sidecar call is needed in the retrieval path.
+/// Embeds the query text via the Python sidecar, then queries Chroma with
+/// the resulting vector using `query_embeddings`.
 #[tauri::command]
 pub async fn search_all(
     params: SearchParams,
@@ -181,11 +184,15 @@ pub async fn search_all(
         return Err(SearchError::NoCollections);
     }
 
+    // Embed the query text via the Python sidecar.
+    let grpc = get_grpc_client()?;
+    let query_embedding = grpc.embed(query).await?;
+
     // Query each collection for n_results (we will merge and truncate after).
     let mut all_results: Vec<SearchResult> = Vec::new();
 
     for coll_name in &collections {
-        match query_single_collection(coll_name, query, n_results, params.cluster_id).await {
+        match query_single_collection(coll_name, &query_embedding, n_results, params.cluster_id).await {
             Ok(results) => all_results.extend(results),
             Err(e) => {
                 tracing::warn!("Search in collection '{}' failed: {}", coll_name, e);
@@ -231,7 +238,10 @@ pub async fn search_collection(
 
     let n_results = params.n_results.unwrap_or(DEFAULT_N_RESULTS);
 
-    query_single_collection(&collection, query, n_results, params.cluster_id).await
+    let grpc = get_grpc_client()?;
+    let query_embedding = grpc.embed(query).await?;
+
+    query_single_collection(&collection, &query_embedding, n_results, params.cluster_id).await
 }
 
 // ---------------------------------------------------------------------------

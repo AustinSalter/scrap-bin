@@ -61,6 +61,9 @@ feed-rs = "2"
 # URL parsing
 url = "2"
 
+# HTML parsing (article content extraction, Chrome bookmark import)
+scraper = "0.22"
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

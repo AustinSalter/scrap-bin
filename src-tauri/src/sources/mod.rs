@@ -3,6 +3,7 @@ pub mod readwise;
 pub mod podcasts;
 pub mod rss;
 pub mod apple_notes;
+pub mod chrome;
 
 use crate::config;
 use crate::fragment::SourceType;
@@ -172,12 +173,21 @@ pub async fn sync_source(source_id: String) -> Result<SyncSourceResult, Dispatch
                 });
             }
             let result = twitter::source_twitter_sync(client_id).await?;
+            let mut message = format!(
+                "Imported {} bookmarks ({} skipped, {} threads) — {} pages fetched, stopped: {}",
+                result.imported, result.skipped, result.threads_detected,
+                result.pages_fetched, result.stop_reason
+            );
+            if let Some(secs) = result.retry_after_secs {
+                let mins = (secs + 59) / 60; // round up
+                message.push_str(&format!(
+                    ". Rate limited — retry in {} min to continue.",
+                    mins
+                ));
+            }
             Ok(SyncSourceResult {
                 success: true,
-                message: format!(
-                    "Imported {} bookmarks ({} skipped, {} threads)",
-                    result.imported, result.skipped, result.threads_detected
-                ),
+                message,
                 fragments_imported: result.imported,
             })
         }

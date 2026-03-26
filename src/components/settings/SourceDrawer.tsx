@@ -7,6 +7,7 @@ import {
   sourceTwitterCheckConnection,
   sourceTwitterAuthStart,
 } from '../../api/commands';
+import { useAppStore } from '../../stores/appStore';
 import type { SourceConfig, Disposition, TwitterConnectionInfo } from '../../types';
 import './source-drawer.css';
 
@@ -76,6 +77,20 @@ export function SourceDrawer({ source, onClose, onSaved, onRemoved }: SourceDraw
     try {
       const result = await syncSource(source.id);
       setSyncMessage(result.message);
+
+      // Auto-cluster after successful sync with new fragments
+      if (result.fragments_imported > 0) {
+        setSyncMessage(`${result.message} — clustering...`);
+        try {
+          await useAppStore.getState().recluster();
+          const { clusters, threads } = useAppStore.getState();
+          setSyncMessage(
+            `${result.message} — ${clusters.length} clusters, ${threads.length} threads`
+          );
+        } catch {
+          setSyncMessage(`${result.message} — clustering failed (non-fatal)`);
+        }
+      }
     } catch (e) {
       setSyncMessage(`Sync failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
