@@ -44,6 +44,15 @@ impl std::str::FromStr for Disposition {
     }
 }
 
+/// A character-offset range identifying a user-highlighted span within a
+/// fragment's content text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HighlightRange {
+    pub start: usize,
+    pub end: usize,
+    pub text: String,
+}
+
 /// A unified content fragment that represents a single chunk of ingested
 /// content, regardless of the original source (vault note, tweet, highlight,
 /// podcast transcript, etc.).
@@ -74,6 +83,9 @@ pub struct Fragment {
     pub cluster_id: Option<i32>,
     /// Triage disposition: signal, inbox, or ignored.
     pub disposition: Disposition,
+    /// User-highlighted text ranges used to override the embedding for clustering.
+    #[serde(default)]
+    pub highlights: Vec<HighlightRange>,
     /// Source-specific extra data that doesn't fit the common fields.
     pub metadata: serde_json::Value,
 }
@@ -88,6 +100,7 @@ pub enum SourceType {
     Podcast,
     Rss,
     AppleNotes,
+    ChromeBookmarks,
 }
 
 impl SourceType {
@@ -100,6 +113,7 @@ impl SourceType {
             SourceType::Podcast => "podcasts",
             SourceType::Rss => "rss",
             SourceType::AppleNotes => "apple_notes",
+            SourceType::ChromeBookmarks => "chrome_bookmarks",
         }
     }
 
@@ -112,6 +126,7 @@ impl SourceType {
             "podcasts" => Some(SourceType::Podcast),
             "rss" => Some(SourceType::Rss),
             "apple_notes" => Some(SourceType::AppleNotes),
+            "chrome_bookmarks" => Some(SourceType::ChromeBookmarks),
             _ => None,
         }
     }
@@ -126,6 +141,7 @@ impl std::fmt::Display for SourceType {
             SourceType::Podcast => "podcast",
             SourceType::Rss => "rss",
             SourceType::AppleNotes => "apple_notes",
+            SourceType::ChromeBookmarks => "chrome_bookmarks",
         };
         write!(f, "{}", label)
     }
@@ -170,6 +186,15 @@ pub fn fragment_to_chroma_metadata(f: &Fragment) -> serde_json::Value {
         "disposition": f.disposition.to_string(),
     });
 
+    // Serialize highlights as a JSON string (Chroma requires scalar metadata values).
+    // Always write the key for consistency with the set_highlights command.
+    let highlights_json = if f.highlights.is_empty() {
+        String::new()
+    } else {
+        serde_json::to_string(&f.highlights).unwrap_or_default()
+    };
+    meta["highlights"] = serde_json::Value::String(highlights_json);
+
     // Merge source-specific metadata. Chroma only supports scalar values,
     // so skip nested objects and arrays.
     if let serde_json::Value::Object(extras) = &f.metadata {
@@ -199,6 +224,7 @@ const KNOWN_META_KEYS: &[&str] = &[
     "modified_at",
     "cluster_id",
     "disposition",
+    "highlights",
 ];
 
 /// Reconstructs a `Fragment` from a Chroma ID, document, and metadata JSON.
@@ -268,6 +294,13 @@ pub fn chroma_to_fragment(
         .and_then(|s| s.parse::<Disposition>().ok())
         .unwrap_or_default();
 
+    let highlights: Vec<HighlightRange> = metadata
+        .get("highlights")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+
     // Collect remaining metadata keys into the catch-all `metadata` field.
     let extras = if let serde_json::Value::Object(map) = metadata {
         let mut extra_map = serde_json::Map::new();
@@ -294,6 +327,7 @@ pub fn chroma_to_fragment(
         modified_at,
         cluster_id,
         disposition,
+        highlights,
         metadata: extras,
     }
 }
@@ -320,6 +354,7 @@ mod tests {
             modified_at: "2025-01-15T10:30:00Z".to_string(),
             cluster_id: Some(3),
             disposition: Disposition::Inbox,
+            highlights: vec![],
             metadata: serde_json::json!({}),
         }
     }
@@ -332,6 +367,7 @@ mod tests {
         assert_eq!(SourceType::Podcast.collection_name(), "podcasts");
         assert_eq!(SourceType::Rss.collection_name(), "rss");
         assert_eq!(SourceType::AppleNotes.collection_name(), "apple_notes");
+        assert_eq!(SourceType::ChromeBookmarks.collection_name(), "chrome_bookmarks");
     }
 
     #[test]
@@ -440,6 +476,7 @@ mod tests {
         assert_eq!(SourceType::from_collection_name("podcasts"), Some(SourceType::Podcast));
         assert_eq!(SourceType::from_collection_name("rss"), Some(SourceType::Rss));
         assert_eq!(SourceType::from_collection_name("apple_notes"), Some(SourceType::AppleNotes));
+        assert_eq!(SourceType::from_collection_name("chrome_bookmarks"), Some(SourceType::ChromeBookmarks));
         assert_eq!(SourceType::from_collection_name("unknown"), None);
     }
 
@@ -483,5 +520,35 @@ mod tests {
         let meta = fragment_to_chroma_metadata(&frag);
         let reconstructed = chroma_to_fragment(frag.id.clone(), frag.content.clone(), &meta);
         assert_eq!(reconstructed.metadata.get("tweet_id").and_then(|v| v.as_str()), Some("12345"));
+    }
+
+    #[test]
+    fn test_highlights_roundtrip() {
+        let mut frag = sample_fragment();
+        frag.highlights = vec![
+            HighlightRange { start: 0, end: 4, text: "Some".to_string() },
+            HighlightRange { start: 5, end: 12, text: "content".to_string() },
+        ];
+        let meta = fragment_to_chroma_metadata(&frag);
+
+        // Highlights should be serialized as a JSON string.
+        let json_str = meta["highlights"].as_str().unwrap();
+        assert!(json_str.contains("\"start\":0"));
+        assert!(json_str.contains("\"text\":\"content\""));
+
+        let reconstructed = chroma_to_fragment(frag.id.clone(), frag.content.clone(), &meta);
+        assert_eq!(reconstructed.highlights, frag.highlights);
+    }
+
+    #[test]
+    fn test_highlights_empty_roundtrip() {
+        let frag = sample_fragment(); // highlights is empty
+        let meta = fragment_to_chroma_metadata(&frag);
+
+        // Empty highlights should be stored as "".
+        assert_eq!(meta["highlights"], "");
+
+        let reconstructed = chroma_to_fragment(frag.id.clone(), frag.content.clone(), &meta);
+        assert!(reconstructed.highlights.is_empty());
     }
 }

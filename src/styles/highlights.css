@@ -1,0 +1,53 @@
+/* ── Fragment Highlights ──────────────────────────────────── */
+
+mark.fragment-highlight {
+  background: rgba(91, 141, 239, 0.18); /* accent cerulean at 18% */
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── Highlight Popover ───────────────────────────────────── */
+
+.highlight-popover {
+  position: fixed;
+  z-index: 9000;
+  background: var(--ink, #09090b);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.highlight-popover button {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.highlight-popover button:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.highlight-popover .highlight-btn {
+  background: var(--accent, #5b8def);
+  border-color: var(--accent, #5b8def);
+}
+
+.highlight-popover .highlight-btn:hover {
+  opacity: 0.9;
+}
+
+.highlight-popover .highlight-remove-btn {
+  color: rgba(255, 255, 255, 0.7);
+}

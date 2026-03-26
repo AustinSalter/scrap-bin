@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost ws://localhost:1420 http://localhost:8000 http://localhost:50051"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost https://pbs.twimg.com https://abs.twimg.com; font-src 'self' data:; connect-src ipc: http://ipc.localhost ws://localhost:1420 http://localhost:8000 http://localhost:50051"
     },
     "macOSPrivateApi": true
   },

@@ -276,6 +276,7 @@ fn process_transcript_file(path: &Path) -> Result<Vec<Fragment>, SourceError> {
                 modified_at: modified_at.clone(),
                 cluster_id: None,
                 disposition: fragment::Disposition::Inbox,
+                highlights: vec![],
                 metadata: serde_json::json!({
                     "file_name": file_stem,
                     "format": ext,

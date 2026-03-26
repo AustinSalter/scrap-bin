@@ -47,6 +47,15 @@ export interface TwitterSyncResult {
   skipped: number;
   threads_detected: number;
   errors: string[];
+  pages_fetched: number;
+  stop_reason: string;
+  retry_after_secs: number | null;
+}
+
+export interface OEmbedResponse {
+  html: string;
+  author_name: string;
+  author_url: string;
 }
 
 export interface ReadwiseImportResult {
@@ -79,6 +88,12 @@ export interface AppleNotesScanResult {
   errors: string[];
 }
 
+export interface HighlightRange {
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface Fragment {
   id: string;
   content: string;
@@ -89,6 +104,31 @@ export interface Fragment {
   isYourNote: boolean;
   clusterId: number;
   headingPath: string[];
+  disposition: Disposition;
+  highlights: HighlightRange[];
+  metadata: Record<string, unknown>;
+}
+
+export type TriageTab = 'all' | 'signal' | 'inbox';
+
+export interface FragmentFilter {
+  source_type?: string;
+  disposition?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface FragmentPage {
+  fragments: Fragment[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface DispositionCounts {
+  signal: number;
+  inbox: number;
+  ignored: number;
 }
 
 export interface ClusterView {

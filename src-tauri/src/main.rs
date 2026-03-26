@@ -4,6 +4,7 @@ mod chroma;
 mod chunker;
 mod clustering;
 mod config;
+mod content_extractor;
 mod fragment;
 mod grpc_client;
 mod markdown;
@@ -75,6 +76,7 @@ fn main() {
             sources::twitter::source_twitter_auth_start,
             sources::twitter::source_twitter_sync,
             sources::twitter::source_twitter_check_connection,
+            sources::twitter::fetch_tweet_oembed,
             sources::readwise::source_readwise_import,
             sources::readwise::source_readwise_configure,
             sources::readwise::source_readwise_check_connection,
@@ -85,6 +87,8 @@ fn main() {
             sources::rss::source_rss_check_connection,
             sources::apple_notes::source_apple_notes_scan,
             sources::apple_notes::source_apple_notes_check,
+            sources::chrome::source_chrome_import_bookmarks,
+            sources::twitter::source_twitter_expand_urls,
             sources::test_source,
             sources::sync_source,
             // Pipeline
@@ -103,6 +107,7 @@ fn main() {
             search::get_inbox,
             // Fragment mutation
             pipeline::set_disposition,
+            pipeline::set_highlights,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

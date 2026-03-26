@@ -38,8 +38,6 @@ pub enum SourceError {
     AuthRequired,
     #[error("Token refresh failed: {0}")]
     TokenRefreshFailed(String),
-    #[error("Rate limited, retry after {0} seconds")]
-    RateLimited(u64),
 }
 
 impl Serialize for SourceError {
@@ -222,7 +220,7 @@ pub async fn source_twitter_auth_start(
     client_id: String,
 ) -> Result<AuthStartResult, SourceError> {
     let auth_url_str = "https://twitter.com/i/oauth2/authorize";
-    let token_url_str = "https://api.twitter.com/2/oauth2/token";
+    let token_url_str = "https://api.x.com/2/oauth2/token";
 
     // Ensure the persistent callback listener is running.
     // Twitter rejects localhost/127.0.0.1 as callback URLs, so we use a custom
@@ -391,7 +389,7 @@ async fn exchange_code_for_tokens(
     let http_client = reqwest::Client::new();
 
     let resp = http_client
-        .post("https://api.twitter.com/2/oauth2/token")
+        .post("https://api.x.com/2/oauth2/token")
         .form(&[
             ("grant_type", "authorization_code"),
             ("code", code),
@@ -419,7 +417,7 @@ async fn exchange_code_for_tokens(
 
     // Fetch user info
     let user_resp = http_client
-        .get("https://api.twitter.com/2/users/me")
+        .get("https://api.x.com/2/users/me")
         .bearer_auth(&token_resp.access_token)
         .send()
         .await?;
@@ -467,7 +465,7 @@ async fn refresh_access_token(client_id: &str) -> Result<config::TwitterCredenti
     let http_client = reqwest::Client::new();
 
     let resp = http_client
-        .post("https://api.twitter.com/2/oauth2/token")
+        .post("https://api.x.com/2/oauth2/token")
         .form(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", &creds.refresh_token),
@@ -563,10 +561,33 @@ fn save_sync_state(state: &TwitterSyncState) -> Result<(), SourceError> {
 // Bookmark fetching with pagination
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Serialize)]
+pub enum PaginationStopReason {
+    AllPagesFetched,
+    AllExistingDedup,
+    MaxPagesReached,
+    EmptyPage,
+    RateLimited(u64),
+}
+
+impl std::fmt::Display for PaginationStopReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PaginationStopReason::AllPagesFetched => write!(f, "all pages fetched"),
+            PaginationStopReason::AllExistingDedup => write!(f, "all remaining already indexed"),
+            PaginationStopReason::MaxPagesReached => write!(f, "max page limit reached"),
+            PaginationStopReason::EmptyPage => write!(f, "empty page returned"),
+            PaginationStopReason::RateLimited(n) => write!(f, "rate limited (retry after {}s)", n),
+        }
+    }
+}
+
 struct FetchResult {
     tweets: Vec<TweetData>,
     users: Vec<UserData>,
     ref_tweets: Vec<TweetData>,
+    pages_fetched: u32,
+    stop_reason: PaginationStopReason,
 }
 
 async fn fetch_bookmarks(
@@ -588,11 +609,12 @@ async fn fetch_bookmarks(
     let sync_state = load_sync_state();
     let mut next_token = sync_state.pagination_cursor.clone();
     let mut page_count = 0u32;
+    let mut stop_reason = PaginationStopReason::AllPagesFetched;
     const MAX_PAGES: u32 = 50; // Safety cap: 50 pages × 100 = 5000 bookmarks max
 
     loop {
         let mut url = format!(
-            "https://api.twitter.com/2/users/{}/bookmarks?max_results=100&tweet.fields={}&user.fields={}&expansions={}",
+            "https://api.x.com/2/users/{}/bookmarks?max_results=100&tweet.fields={}&user.fields={}&expansions={}",
             user_id, tweet_fields, user_fields, expansions
         );
 
@@ -600,7 +622,11 @@ async fn fetch_bookmarks(
             url.push_str(&format!("&pagination_token={}", token));
         }
 
-        tracing::debug!("Fetching bookmarks page {} (cursor: {:?})", page_count, next_token);
+        page_count += 1;
+        tracing::info!(
+            "Fetching bookmarks page {} (cursor: {:?}, tweets so far: {})",
+            page_count, next_token, all_tweets.len()
+        );
 
         let resp = http_client
             .get(&url)
@@ -608,7 +634,7 @@ async fn fetch_bookmarks(
             .send()
             .await?;
 
-        // Handle rate limiting
+        // Handle rate limiting — save cursor and return partial results
         if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
             let retry_after = resp
                 .headers()
@@ -617,12 +643,18 @@ async fn fetch_bookmarks(
                 .and_then(|v| v.parse::<u64>().ok())
                 .unwrap_or(900); // default 15 min
 
+            tracing::warn!(
+                "Rate limited after {} pages ({} tweets collected). Retry after {}s.",
+                page_count, all_tweets.len(), retry_after
+            );
+
             // Save cursor so we can resume later
             let mut state = load_sync_state();
             state.pagination_cursor = next_token;
             let _ = save_sync_state(&state);
 
-            return Err(SourceError::RateLimited(retry_after));
+            stop_reason = PaginationStopReason::RateLimited(retry_after);
+            break;
         }
 
         if !resp.status().is_success() {
@@ -635,6 +667,10 @@ async fn fetch_bookmarks(
         }
 
         let page: BookmarksResponse = resp.json().await?;
+
+        // Log result_count from meta
+        let result_count = page.meta.as_ref().and_then(|m| m.result_count).unwrap_or(0);
+        tracing::info!("Page {} returned {} results", page_count, result_count);
 
         // Collect users from includes
         if let Some(ref includes) = page.includes {
@@ -649,36 +685,71 @@ async fn fetch_bookmarks(
         // Collect tweets
         let page_tweets = page.data.unwrap_or_default();
 
-        // Check for early exit: if all tweets on this page already exist, stop
-        if !page_tweets.is_empty() {
-            let all_existing = page_tweets
-                .iter()
-                .all(|t| existing_tweet_ids.contains(&t.id));
-            if all_existing {
-                tracing::info!("All bookmarks on page already indexed, stopping pagination");
-                break;
-            }
+        // Check for empty page
+        if page_tweets.is_empty() {
+            tracing::info!("Page {} returned no tweets, stopping pagination", page_count);
+            stop_reason = PaginationStopReason::EmptyPage;
+            break;
+        }
+
+        // Check for early exit: if all tweets on this page already exist, stop.
+        // But only if we've already collected some new tweets — otherwise we may
+        // have never paginated past this point and need to keep going.
+        let all_existing = page_tweets
+            .iter()
+            .all(|t| existing_tweet_ids.contains(&t.id));
+        if all_existing && !all_tweets.is_empty() {
+            tracing::info!(
+                "All {} bookmarks on page {} already indexed, stopping pagination (total tweets: {})",
+                page_tweets.len(), page_count, all_tweets.len()
+            );
+            stop_reason = PaginationStopReason::AllExistingDedup;
+            break;
+        } else if all_existing {
+            tracing::info!(
+                "All {} bookmarks on page {} already indexed, but no new tweets found yet — continuing to check further pages",
+                page_tweets.len(), page_count
+            );
         }
 
         all_tweets.extend(page_tweets);
 
         // Check for next page
-        next_token = page.meta.and_then(|m| m.next_token);
-        if next_token.is_none() {
+        let has_next = page.meta.and_then(|m| m.next_token);
+        if has_next.is_none() {
+            tracing::info!(
+                "No next_token after page {} (total tweets: {}). Twitter API may cap pagination here.",
+                page_count, all_tweets.len()
+            );
+            stop_reason = PaginationStopReason::AllPagesFetched;
+            break;
+        }
+        next_token = has_next;
+
+        if page_count >= MAX_PAGES {
+            tracing::warn!(
+                "Reached pagination safety cap ({} pages, {} tweets), stopping",
+                MAX_PAGES, all_tweets.len()
+            );
+            stop_reason = PaginationStopReason::MaxPagesReached;
             break;
         }
 
-        page_count += 1;
-        if page_count >= MAX_PAGES {
-            tracing::warn!("Reached pagination safety cap ({} pages), stopping", MAX_PAGES);
-            break;
-        }
+        // Be polite to the API
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
+
+    tracing::info!(
+        "Bookmark fetch complete: {} pages, {} tweets, stop reason: {}",
+        page_count, all_tweets.len(), stop_reason
+    );
 
     Ok(FetchResult {
         tweets: all_tweets,
         users: all_users,
         ref_tweets: all_ref_tweets,
+        pages_fetched: page_count,
+        stop_reason,
     })
 }
 
@@ -873,6 +944,16 @@ pub fn api_tweet_to_fragments(
                 }
             }
 
+            let is_article = tweet
+                .note_tweet
+                .as_ref()
+                .and_then(|nt| nt.text.as_deref())
+                .map(|t| t.len() > 280)
+                .unwrap_or(false);
+            if is_article {
+                metadata["is_article"] = serde_json::json!(true);
+            }
+
             Fragment {
                 id,
                 content: chunk_text,
@@ -885,7 +966,8 @@ pub fn api_tweet_to_fragments(
                 content_hash: hash,
                 modified_at: modified_at.clone(),
                 cluster_id: None,
-                disposition: fragment::Disposition::Signal,
+                disposition: fragment::Disposition::Inbox,
+                highlights: vec![],
                 metadata,
             }
         })
@@ -902,6 +984,9 @@ pub struct TwitterSyncResult {
     pub skipped: usize,
     pub threads_detected: usize,
     pub errors: Vec<String>,
+    pub pages_fetched: u32,
+    pub stop_reason: String,
+    pub retry_after_secs: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -941,6 +1026,13 @@ pub async fn source_twitter_sync(
 
     // Fetch bookmarks from API
     let fetch_result = fetch_bookmarks(&access_token, &creds.user_id, &existing_ids).await?;
+    let pages_fetched = fetch_result.pages_fetched;
+    let rate_limited = matches!(fetch_result.stop_reason, PaginationStopReason::RateLimited(_));
+    let retry_after_secs = match &fetch_result.stop_reason {
+        PaginationStopReason::RateLimited(n) => Some(*n),
+        _ => None,
+    };
+    let stop_reason = fetch_result.stop_reason.to_string();
 
     // Filter to new tweets only
     let new_tweets: Vec<&TweetData> = fetch_result
@@ -955,7 +1047,10 @@ pub async fn source_twitter_sync(
         // Save sync state even when nothing new
         let mut state = load_sync_state();
         state.last_sync_at = Some(chrono::Utc::now().to_rfc3339());
-        state.pagination_cursor = None;
+        // Preserve cursor when rate-limited so next sync resumes
+        if !rate_limited {
+            state.pagination_cursor = None;
+        }
         let _ = save_sync_state(&state);
 
         return Ok(TwitterSyncResult {
@@ -963,6 +1058,9 @@ pub async fn source_twitter_sync(
             skipped,
             threads_detected: 0,
             errors: Vec::new(),
+            pages_fetched,
+            stop_reason,
+            retry_after_secs,
         });
     }
 
@@ -1032,7 +1130,10 @@ pub async fn source_twitter_sync(
     // Save sync state
     let mut state = load_sync_state();
     state.last_sync_at = Some(chrono::Utc::now().to_rfc3339());
-    state.pagination_cursor = None;
+    // Preserve cursor when rate-limited so next sync resumes
+    if !rate_limited {
+        state.pagination_cursor = None;
+    }
     let _ = save_sync_state(&state);
 
     Ok(TwitterSyncResult {
@@ -1040,6 +1141,9 @@ pub async fn source_twitter_sync(
         skipped,
         threads_detected,
         errors,
+        pages_fetched,
+        stop_reason,
+        retry_after_secs,
     })
 }
 
@@ -1072,7 +1176,7 @@ pub async fn source_twitter_check_connection(
 
     let http_client = reqwest::Client::new();
     let resp = http_client
-        .get("https://api.twitter.com/2/users/me")
+        .get("https://api.x.com/2/users/me")
         .bearer_auth(&token)
         .send()
         .await;
@@ -1092,6 +1196,253 @@ pub async fn source_twitter_check_connection(
             connected: false,
         }),
     }
+}
+
+// ---------------------------------------------------------------------------
+// oEmbed proxy for tweet rendering
+// ---------------------------------------------------------------------------
+
+use std::sync::OnceLock;
+
+static OEMBED_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+
+fn oembed_cache() -> &'static Mutex<HashMap<String, String>> {
+    OEMBED_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OEmbedResponse {
+    pub html: String,
+    pub author_name: String,
+    pub author_url: String,
+}
+
+/// Fetches oEmbed HTML for a tweet URL via Twitter's public publish API.
+/// Results are cached in-memory for the session lifetime.
+#[tauri::command]
+pub async fn fetch_tweet_oembed(tweet_url: String) -> Result<OEmbedResponse, SourceError> {
+    // Check cache
+    {
+        let cache = oembed_cache().lock();
+        if let Some(cached_html) = cache.get(&tweet_url) {
+            return Ok(OEmbedResponse {
+                html: cached_html.clone(),
+                author_name: String::new(),
+                author_url: String::new(),
+            });
+        }
+    }
+
+    let http_client = reqwest::Client::new();
+    let resp = http_client
+        .get("https://publish.twitter.com/oembed")
+        .query(&[
+            ("url", tweet_url.as_str()),
+            ("omit_script", "true"),
+            ("dnt", "true"),
+        ])
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(SourceError::Http(format!(
+            "oEmbed API returned {}: {}",
+            status, body
+        )));
+    }
+
+    let data: serde_json::Value = resp.json().await?;
+    let html = data["html"]
+        .as_str()
+        .unwrap_or("")
+        .replace(
+            "class=\"twitter-tweet\"",
+            "class=\"twitter-tweet\" data-theme=\"dark\"",
+        );
+    let author_name = data["author_name"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let author_url = data["author_url"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Cache the result
+    {
+        let mut cache = oembed_cache().lock();
+        cache.insert(tweet_url, html.clone());
+    }
+
+    Ok(OEmbedResponse {
+        html,
+        author_name,
+        author_url,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// URL content expansion
+// ---------------------------------------------------------------------------
+
+/// Result of expanding URLs in existing Twitter fragments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UrlExpansionResult {
+    pub tweets_processed: usize,
+    pub urls_expanded: usize,
+    pub fragments_created: usize,
+    pub errors: Vec<String>,
+}
+
+/// Expand URLs in existing Twitter fragments: fetch article content for linked
+/// URLs and create additional fragments with the article text.
+#[tauri::command]
+pub async fn source_twitter_expand_urls(
+    source_id: String,
+) -> Result<UrlExpansionResult, SourceError> {
+    let chroma_client = get_client();
+    let coll_id = get_collection_id(COLLECTION_TWITTER).await?;
+
+    // Fetch all existing Twitter fragments with metadata
+    let existing = chroma_client
+        .get(
+            &coll_id,
+            None,
+            None,
+            Some(vec!["metadatas".to_string()]),
+            None,
+            None,
+        )
+        .await?;
+
+    // Collect tweet_id → urls from metadata
+    let mut tweet_urls: Vec<(String, Vec<String>)> = Vec::new();
+    let mut existing_source_paths: HashSet<String> = HashSet::new();
+
+    if let Some(metas) = &existing.metadatas {
+        for meta in metas.iter().flatten() {
+            let tweet_id = meta
+                .get("tweet_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let source_path = meta
+                .get("source_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            existing_source_paths.insert(source_path);
+
+            if let Some(urls_csv) = meta.get("urls").and_then(|v| v.as_str()) {
+                if !urls_csv.is_empty() {
+                    let urls: Vec<String> = urls_csv.split(',').map(|s| s.trim().to_string()).collect();
+                    tweet_urls.push((tweet_id, urls));
+                }
+            }
+        }
+    }
+
+    let mut urls_expanded = 0usize;
+    let mut total_fragments = 0usize;
+    let mut errors = Vec::new();
+    let tweets_processed = tweet_urls.len();
+
+    let grpc = get_grpc_client()?;
+
+    for (tweet_id, urls) in &tweet_urls {
+        for url in urls {
+            // Skip if we already have fragments from this URL
+            if existing_source_paths.contains(url) {
+                continue;
+            }
+
+            // Rate limit: 1 req/sec
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+            let article = match crate::content_extractor::fetch_article_content(url).await {
+                Some(a) => a,
+                None => continue,
+            };
+
+            urls_expanded += 1;
+
+            // Chunk the article content
+            let chunks = crate::chunker::chunk_plain_text(&article.text, url);
+            let mut batch_fragments = Vec::new();
+
+            for chunk in &chunks {
+                let hash = fragment::content_hash(&chunk.content);
+                let modified_at = chrono::Utc::now().to_rfc3339();
+
+                batch_fragments.push(Fragment {
+                    id: ulid::Ulid::new().to_string(),
+                    content: chunk.content.clone(),
+                    source_type: SourceType::Twitter,
+                    source_path: url.clone(),
+                    chunk_index: chunk.chunk_index,
+                    heading_path: Vec::new(),
+                    tags: Vec::new(),
+                    token_count: chunk.token_count,
+                    content_hash: hash,
+                    modified_at,
+                    cluster_id: None,
+                    disposition: fragment::Disposition::Inbox,
+                    highlights: vec![],
+                    metadata: serde_json::json!({
+                        "tweet_id": tweet_id,
+                        "linked_url": url,
+                        "linked_title": article.title.as_deref().unwrap_or(""),
+                        "source_hint": "url_expansion",
+                        "word_count": article.word_count,
+                    }),
+                });
+            }
+
+            if !batch_fragments.is_empty() {
+                let texts: Vec<String> = batch_fragments.iter().map(|f| f.content.clone()).collect();
+                match grpc.embed_batch(texts).await {
+                    Ok(embeddings) => {
+                        let ids: Vec<String> = batch_fragments.iter().map(|f| f.id.clone()).collect();
+                        let documents: Vec<String> =
+                            batch_fragments.iter().map(|f| f.content.clone()).collect();
+                        let metadatas: Vec<serde_json::Value> = batch_fragments
+                            .iter()
+                            .map(fragment::fragment_to_chroma_metadata)
+                            .collect();
+
+                        if let Err(e) = chroma_client
+                            .add(&coll_id, ids, Some(embeddings), Some(documents), Some(metadatas))
+                            .await
+                        {
+                            errors.push(format!("Chroma add for {} failed: {}", url, e));
+                        } else {
+                            total_fragments += batch_fragments.len();
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("Embedding for {} failed: {}", url, e));
+                    }
+                }
+            }
+        }
+    }
+
+    tracing::info!(
+        source_id = %source_id,
+        tweets = tweets_processed,
+        urls = urls_expanded,
+        fragments = total_fragments,
+        "URL expansion complete"
+    );
+
+    Ok(UrlExpansionResult {
+        tweets_processed,
+        urls_expanded,
+        fragments_created: total_fragments,
+        errors,
+    })
 }
 
 // ===========================================================================
@@ -1164,6 +1515,16 @@ fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
                 metadata["author_id"] = serde_json::json!(author);
             }
 
+            let is_article = bookmark
+                .note_tweet
+                .as_ref()
+                .and_then(|nt| nt.text.as_deref())
+                .map(|t| t.len() > 280)
+                .unwrap_or(false);
+            if is_article {
+                metadata["is_article"] = serde_json::json!(true);
+            }
+
             Fragment {
                 id,
                 content: chunk_text,
@@ -1176,7 +1537,8 @@ fn bookmark_to_fragments(bookmark: &TwitterBookmark) -> Vec<Fragment> {
                 content_hash: hash,
                 modified_at: modified_at.clone(),
                 cluster_id: None,
-                disposition: fragment::Disposition::Signal,
+                disposition: fragment::Disposition::Inbox,
+                highlights: vec![],
                 metadata,
             }
         })
@@ -1414,7 +1776,7 @@ mod tests {
         let fragments = api_tweet_to_fragments(&tweet, &users, &[], None);
 
         assert_eq!(fragments.len(), 1);
-        assert_eq!(fragments[0].disposition, fragment::Disposition::Signal);
+        assert_eq!(fragments[0].disposition, fragment::Disposition::Inbox);
         assert_eq!(fragments[0].metadata["tweet_id"], "111");
         assert_eq!(fragments[0].metadata["author_handle"], "testuser");
         assert_eq!(
@@ -1626,7 +1988,7 @@ mod tests {
     }
 
     #[test]
-    fn test_legacy_disposition_is_signal() {
+    fn test_legacy_disposition_is_inbox() {
         let bookmark = TwitterBookmark {
             id: "999".to_string(),
             text: "Legacy import tweet.".to_string(),
@@ -1636,6 +1998,6 @@ mod tests {
         };
 
         let fragments = bookmark_to_fragments(&bookmark);
-        assert_eq!(fragments[0].disposition, fragment::Disposition::Signal);
+        assert_eq!(fragments[0].disposition, fragment::Disposition::Inbox);
     }
 }

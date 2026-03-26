@@ -174,6 +174,7 @@ fn highlight_to_fragment(h: &ReadwiseHighlight) -> Fragment {
         modified_at,
         cluster_id: None,
         disposition: fragment::Disposition::Inbox,
+        highlights: vec![],
         metadata,
     }
 }

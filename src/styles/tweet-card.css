@@ -1,0 +1,117 @@
+/* ── Native Tweet Card ──────────────────────────────────── */
+
+.tweet-card {
+  max-width: 600px;
+}
+
+/* Header: avatar + author info */
+.tweet-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.tweet-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.tweet-avatar-initial {
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 500;
+  font-size: 16px;
+  color: #fff;
+}
+
+.tweet-card-author {
+  display: flex;
+  flex-direction: column;
+}
+
+.tweet-card-name {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tweet-card-handle {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--ghost);
+}
+
+/* Body: tweet text */
+.tweet-card-text {
+  font-family: 'Lora', serif;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--primary);
+  margin-bottom: 22px;
+  white-space: pre-wrap;
+}
+
+/* Quoted tweet */
+.tweet-card-quote {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 22px;
+  background: var(--bg2);
+}
+
+.tweet-card-quote-text {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--secondary);
+  white-space: pre-wrap;
+}
+
+/* Footer: metrics + date */
+.tweet-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--ghost);
+}
+
+.tweet-card-metric {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tweet-card-date {
+  color: var(--ghost);
+}
+
+.tweet-card-link {
+  margin-left: auto;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tweet-card-link:hover {
+  text-decoration: underline;
+}

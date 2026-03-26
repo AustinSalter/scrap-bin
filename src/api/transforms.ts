@@ -1,6 +1,9 @@
 import type {
   ClusterView,
+  Disposition,
   Fragment,
+  FragmentPage,
+  HighlightRange,
   ThreadView,
   StreamItem,
   StatusData,
@@ -70,6 +73,25 @@ export function transformFragment(raw: Record<string, unknown>): Fragment {
   const clusterId = (metadata.cluster_id as number) ?? -1;
   const isYourNote = (metadata.is_user_note as boolean) ?? false;
 
+  const rawDisposition = typeof raw.disposition === 'string'
+    ? raw.disposition
+    : typeof metadata.disposition === 'string'
+      ? metadata.disposition
+      : 'inbox';
+  const disposition = (['signal', 'inbox', 'ignored'].includes(rawDisposition)
+    ? rawDisposition
+    : 'inbox') as Disposition;
+
+  // Highlights are stored as a JSON string in Chroma metadata or as a parsed
+  // array when returned directly from a Rust command.
+  let highlights: HighlightRange[] = [];
+  const rawHighlights = raw.highlights ?? metadata.highlights;
+  if (typeof rawHighlights === 'string' && rawHighlights) {
+    try { highlights = JSON.parse(rawHighlights); } catch { /* no-op */ }
+  } else if (Array.isArray(rawHighlights)) {
+    highlights = rawHighlights as HighlightRange[];
+  }
+
   return {
     id: typeof raw.id === 'string' ? raw.id : '',
     content: typeof raw.content === 'string' ? raw.content : '',
@@ -80,6 +102,23 @@ export function transformFragment(raw: Record<string, unknown>): Fragment {
     isYourNote,
     clusterId,
     headingPath,
+    disposition,
+    highlights,
+    metadata,
+  };
+}
+
+// ── Fragment Page ──────────────────────────────────────────
+
+export function transformFragmentPage(raw: Record<string, unknown>): FragmentPage {
+  const fragments = Array.isArray(raw.fragments)
+    ? (raw.fragments as Record<string, unknown>[]).map(transformFragment)
+    : [];
+  return {
+    fragments,
+    total: typeof raw.total === 'number' ? raw.total : 0,
+    page: typeof raw.page === 'number' ? raw.page : 0,
+    page_size: typeof raw.page_size === 'number' ? raw.page_size : 50,
   };
 }
 

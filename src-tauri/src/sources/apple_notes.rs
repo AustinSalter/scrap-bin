@@ -132,6 +132,7 @@ fn process_note_file(path: &Path, source_dir: &str) -> Result<Vec<Fragment>, Sou
                 modified_at: modified_at.clone(),
                 cluster_id: None,
                 disposition: fragment::Disposition::Signal,
+                highlights: vec![],
                 metadata: serde_json::json!({
                     "file_name": file_name,
                     "source_directory": source_dir,

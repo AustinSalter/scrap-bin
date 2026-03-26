@@ -1,7 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   ClusterView,
+  Disposition,
+  DispositionCounts,
   Fragment,
+  FragmentFilter,
+  FragmentPage,
+  HighlightRange,
   ThreadView,
   SearchResult,
   SourceConfig,
@@ -20,6 +25,7 @@ import type {
 import {
   transformCluster,
   transformFragment,
+  transformFragmentPage,
   transformThread,
   transformPositions,
   transformSearchResult,
@@ -285,4 +291,30 @@ export async function sourceAppleNotesCheck(path: string): Promise<AppleNotesSca
 
 export async function pipelineIndexVault(): Promise<void> {
   return invoke('pipeline_index_vault');
+}
+
+// ── Fragment Triage ──────────────────────────────────────
+
+export async function listFragments(filter: FragmentFilter): Promise<FragmentPage> {
+  const raw = await invoke<Record<string, unknown>>('list_fragments', { filter });
+  return transformFragmentPage(raw);
+}
+
+export async function getFragment(id: string): Promise<Fragment> {
+  const raw = await invoke<Record<string, unknown>>('get_fragment', { id });
+  return transformFragment(raw);
+}
+
+export async function setDisposition(id: string, disposition: Disposition): Promise<Fragment> {
+  const raw = await invoke<Record<string, unknown>>('set_disposition', { id, disposition });
+  return transformFragment(raw);
+}
+
+export async function setHighlights(id: string, highlights: HighlightRange[]): Promise<Fragment> {
+  const raw = await invoke<Record<string, unknown>>('set_highlights', { id, highlights });
+  return transformFragment(raw);
+}
+
+export async function getDispositionCounts(): Promise<DispositionCounts> {
+  return invoke<DispositionCounts>('get_disposition_counts');
 }

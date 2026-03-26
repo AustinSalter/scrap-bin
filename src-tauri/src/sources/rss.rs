@@ -219,6 +219,7 @@ fn entry_to_fragments(
                 modified_at: published_at.clone(),
                 cluster_id: None,
                 disposition: fragment::Disposition::Inbox,
+                highlights: vec![],
                 metadata: serde_json::json!({
                     "feed_url": feed_url,
                     "feed_title": feed_title,
