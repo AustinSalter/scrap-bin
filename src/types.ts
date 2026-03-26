@@ -92,6 +92,8 @@ export interface HighlightRange {
   start: number;
   end: number;
   text: string;
+  /** Priority: 1=Critical, 2=Important, 3=Interesting, 4=Revisit, 5=Reference */
+  priority: number;
 }
 
 export interface Fragment {

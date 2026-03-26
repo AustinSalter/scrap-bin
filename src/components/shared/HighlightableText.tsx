@@ -1,59 +1,54 @@
 import { useRef, useState, useCallback } from 'react';
 import type { HighlightRange } from '../../types';
-import { HighlightPopover } from './HighlightPopover';
+import { FloatingToolbar } from './FloatingToolbar';
 import '../../styles/highlights.css';
 
-// ── Segment computation ──────────────────────────────────────
+// ── Priority → CSS class mapping ─────────────────────────
+
+const PRIORITY_CLASS: Record<number, string> = {
+  1: 'mark-critical',
+  2: 'mark-important',
+  3: 'mark-interesting',
+  4: 'mark-later',
+  5: 'mark-reference',
+};
+
+// ── Segment computation ──────────────────────────────────
 
 interface Segment {
   text: string;
   isHighlight: boolean;
   offset: number;
+  priority: number;
 }
 
-/** Merge overlapping/adjacent ranges into a sorted, non-overlapping set. */
-function mergeRanges(ranges: HighlightRange[], content: string): HighlightRange[] {
-  if (ranges.length === 0) return [];
-  const sorted = [...ranges].sort((a, b) => a.start - b.start);
-  const merged: HighlightRange[] = [{ ...sorted[0] }];
-
-  for (let i = 1; i < sorted.length; i++) {
-    const last = merged[merged.length - 1];
-    if (sorted[i].start <= last.end) {
-      last.end = Math.max(last.end, sorted[i].end);
-      last.text = content.slice(last.start, last.end);
-    } else {
-      merged.push({ ...sorted[i] });
-    }
-  }
-  return merged;
-}
-
-/** Split content into alternating plain/highlight segments. */
+/** Split content into alternating plain/highlight segments.
+ *  Highlights are NOT merged here — each keeps its own priority. */
 function computeSegments(content: string, highlights: HighlightRange[]): Segment[] {
-  if (highlights.length === 0) return [{ text: content, isHighlight: false, offset: 0 }];
+  if (highlights.length === 0) return [{ text: content, isHighlight: false, offset: 0, priority: 0 }];
 
-  const merged = mergeRanges(highlights, content);
+  const sorted = [...highlights].sort((a, b) => a.start - b.start);
   const segments: Segment[] = [];
   let cursor = 0;
 
-  for (const hl of merged) {
-    if (hl.start > cursor) {
-      segments.push({ text: content.slice(cursor, hl.start), isHighlight: false, offset: cursor });
+  for (const hl of sorted) {
+    const start = Math.max(hl.start, cursor);
+    if (start > cursor) {
+      segments.push({ text: content.slice(cursor, start), isHighlight: false, offset: cursor, priority: 0 });
     }
-    segments.push({ text: content.slice(hl.start, hl.end), isHighlight: true, offset: hl.start });
-    cursor = hl.end;
+    if (start < hl.end) {
+      segments.push({ text: content.slice(start, hl.end), isHighlight: true, offset: start, priority: hl.priority });
+    }
+    cursor = Math.max(cursor, hl.end);
   }
   if (cursor < content.length) {
-    segments.push({ text: content.slice(cursor), isHighlight: false, offset: cursor });
+    segments.push({ text: content.slice(cursor), isHighlight: false, offset: cursor, priority: 0 });
   }
   return segments;
 }
 
-// ── DOM offset helpers ───────────────────────────────────────
+// ── DOM offset helpers ───────────────────────────────────
 
-/** Walk text nodes in DOM order to convert a (node, offset) pair to a
- *  character offset within the container's full text content. */
 function getCharOffset(
   container: HTMLElement,
   targetNode: Node,
@@ -69,12 +64,10 @@ function getCharOffset(
     }
     charOffset += (node.textContent?.length ?? 0);
   }
-
-  // Fallback: node not found (shouldn't happen for valid selections)
   return charOffset + nodeOffset;
 }
 
-// ── Component ────────────────────────────────────────────────
+// ── Component ────────────────────────────────────────────
 
 interface HighlightableTextProps {
   content: string;
@@ -84,11 +77,10 @@ interface HighlightableTextProps {
   className?: string;
 }
 
-interface PopoverState {
+interface ToolbarState {
   position: { top: number; left: number };
   start: number;
   end: number;
-  /** Whether the selection exactly matches an existing highlight range. */
   canRemove: boolean;
 }
 
@@ -100,7 +92,7 @@ export function HighlightableText({
   className,
 }: HighlightableTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [toolbar, setToolbar] = useState<ToolbarState | null>(null);
 
   const handleMouseUp = useCallback(() => {
     if (!interactive || !containerRef.current) return;
@@ -109,56 +101,53 @@ export function HighlightableText({
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
 
     const range = sel.getRangeAt(0);
-    // Ensure the selection is within our container.
-    if (!containerRef.current.contains(range.commonAncestorContainer)) {
-      return;
-    }
+    if (!containerRef.current.contains(range.commonAncestorContainer)) return;
 
     const start = getCharOffset(containerRef.current, range.startContainer, range.startOffset);
     const end = getCharOffset(containerRef.current, range.endContainer, range.endOffset);
-
     if (start === end) return;
 
     const [lo, hi] = start < end ? [start, end] : [end, start];
-
-    // Check if this selection exactly matches an existing highlight.
     const canRemove = highlights.some((h) => h.start === lo && h.end === hi);
 
-    // Position popover above the selection.
     const rect = range.getBoundingClientRect();
-    setPopover({
-      position: { top: rect.top - 36, left: rect.left + rect.width / 2 - 50 },
+    setToolbar({
+      position: { top: rect.top - 40, left: rect.left + rect.width / 2 },
       start: lo,
       end: hi,
       canRemove,
     });
   }, [interactive, highlights]);
 
-  const handleHighlight = useCallback(() => {
-    if (!popover) return;
+  const handleHighlight = useCallback((priority: number) => {
+    if (!toolbar) return;
     const newRange: HighlightRange = {
-      start: popover.start,
-      end: popover.end,
-      text: content.slice(popover.start, popover.end),
+      start: toolbar.start,
+      end: toolbar.end,
+      text: content.slice(toolbar.start, toolbar.end),
+      priority,
     };
-    const merged = mergeRanges([...highlights, newRange], content);
-    onHighlightSave(merged);
-    setPopover(null);
+    // Add new highlight without merging (each highlight keeps its own priority)
+    const updated = [...highlights.filter(
+      (h) => !(h.start < newRange.end && h.end > newRange.start)
+    ), newRange].sort((a, b) => a.start - b.start);
+    onHighlightSave(updated);
+    setToolbar(null);
     window.getSelection()?.removeAllRanges();
-  }, [popover, highlights, content, onHighlightSave]);
+  }, [toolbar, highlights, content, onHighlightSave]);
 
   const handleRemove = useCallback(() => {
-    if (!popover) return;
+    if (!toolbar) return;
     const updated = highlights.filter(
-      (h) => !(h.start === popover.start && h.end === popover.end),
+      (h) => !(h.start === toolbar.start && h.end === toolbar.end),
     );
     onHighlightSave(updated);
-    setPopover(null);
+    setToolbar(null);
     window.getSelection()?.removeAllRanges();
-  }, [popover, highlights, onHighlightSave]);
+  }, [toolbar, highlights, onHighlightSave]);
 
   const handleDismiss = useCallback(() => {
-    setPopover(null);
+    setToolbar(null);
     window.getSelection()?.removeAllRanges();
   }, []);
 
@@ -172,15 +161,20 @@ export function HighlightableText({
     >
       {segments.map((seg) =>
         seg.isHighlight ? (
-          <mark key={`hl-${seg.offset}`} className="fragment-highlight">{seg.text}</mark>
+          <mark
+            key={`hl-${seg.offset}`}
+            className={PRIORITY_CLASS[seg.priority] || 'mark-interesting'}
+          >
+            {seg.text}
+          </mark>
         ) : (
           <span key={`pl-${seg.offset}`}>{seg.text}</span>
         ),
       )}
-      {popover && (
-        <HighlightPopover
-          position={popover.position}
-          canRemove={popover.canRemove}
+      {toolbar && (
+        <FloatingToolbar
+          position={toolbar.position}
+          canRemove={toolbar.canRemove}
           onHighlight={handleHighlight}
           onRemove={handleRemove}
           onDismiss={handleDismiss}

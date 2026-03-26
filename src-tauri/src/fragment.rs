@@ -51,6 +51,13 @@ pub struct HighlightRange {
     pub start: usize,
     pub end: usize,
     pub text: String,
+    /// Priority level: 1=Critical, 2=Important, 3=Interesting, 4=Revisit, 5=Reference.
+    #[serde(default = "default_priority")]
+    pub priority: u8,
+}
+
+fn default_priority() -> u8 {
+    3
 }
 
 /// A unified content fragment that represents a single chunk of ingested
@@ -526,8 +533,8 @@ mod tests {
     fn test_highlights_roundtrip() {
         let mut frag = sample_fragment();
         frag.highlights = vec![
-            HighlightRange { start: 0, end: 4, text: "Some".to_string() },
-            HighlightRange { start: 5, end: 12, text: "content".to_string() },
+            HighlightRange { start: 0, end: 4, text: "Some".to_string(), priority: 1 },
+            HighlightRange { start: 5, end: 12, text: "content".to_string(), priority: 3 },
         ];
         let meta = fragment_to_chroma_metadata(&frag);
 
