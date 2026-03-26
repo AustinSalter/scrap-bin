@@ -43,7 +43,7 @@ pub struct ClusterParams {
     pub min_cluster_size: Option<i32>,
     pub min_samples: Option<i32>,
     /// Which content collections to cluster. `None` means all content
-    /// collections (vault, twitter, readwise, podcasts).
+    /// collections (vault, twitter, readwise, podcasts, rss, apple_notes).
     pub collections: Option<Vec<String>>,
 }
 
@@ -125,7 +125,7 @@ async fn next_cluster_label() -> Result<i32, ClusteringError> {
     let coll_id = get_collection_id(COLLECTION_CLUSTERS).await?;
 
     let result = client
-        .get(&coll_id, None, None, Some(vec!["metadatas".to_string()]))
+        .get(&coll_id, None, None, Some(vec!["metadatas".to_string()]), None, None)
         .await?;
 
     let mut max_label: i32 = -1;
@@ -186,6 +186,8 @@ pub async fn clustering_run(
                     "embeddings".to_string(),
                     "documents".to_string(),
                 ]),
+                None,
+                None,
             )
             .await?;
 
@@ -248,7 +250,7 @@ pub async fn clustering_run(
 
     // Clear previous cluster entries.
     let existing = client
-        .get(&clusters_coll_id, None, None, None)
+        .get(&clusters_coll_id, None, None, None, None, None)
         .await?;
     if !existing.ids.is_empty() {
         client.delete(&clusters_coll_id, existing.ids).await?;
@@ -323,6 +325,8 @@ pub async fn clustering_get_all() -> Result<Vec<ClusterView>, ClusteringError> {
             None,
             None,
             Some(vec!["metadatas".to_string(), "documents".to_string()]),
+            None,
+            None,
         )
         .await?;
 
@@ -402,6 +406,8 @@ pub async fn clustering_get_fragments(
                     "documents".to_string(),
                     "metadatas".to_string(),
                 ]),
+                None,
+                None,
             )
             .await?;
 
@@ -510,6 +516,8 @@ pub async fn clustering_merge(
                 None,
                 Some(where_filter),
                 Some(vec!["embeddings".to_string()]),
+                None,
+                None,
             )
             .await?;
         if let Some(embs) = result.embeddings {
@@ -527,6 +535,8 @@ pub async fn clustering_merge(
             Some(vec![target_doc_id.clone()]),
             None,
             Some(vec!["metadatas".to_string(), "documents".to_string()]),
+            None,
+            None,
         )
         .await?;
 
@@ -625,6 +635,8 @@ pub async fn clustering_split(
             Some(vec![orig_doc_id.clone()]),
             None,
             Some(vec!["metadatas".to_string()]),
+            None,
+            None,
         )
         .await?;
 
@@ -677,6 +689,8 @@ pub async fn clustering_split(
                 None,
                 Some(where_filter),
                 Some(vec!["embeddings".to_string()]),
+                None,
+                None,
             )
             .await?;
         if let Some(embs) = result.embeddings {
@@ -718,6 +732,8 @@ pub async fn clustering_split(
                 None,
                 Some(where_filter),
                 Some(vec!["embeddings".to_string()]),
+                None,
+                None,
             )
             .await?;
         if let Some(embs) = result.embeddings {
@@ -810,6 +826,8 @@ pub async fn clustering_move_fragment(
             Some(vec![from_doc_id.clone()]),
             None,
             Some(vec!["metadatas".to_string(), "documents".to_string()]),
+            None,
+            None,
         )
         .await?;
 
@@ -853,6 +871,8 @@ pub async fn clustering_move_fragment(
             Some(vec![to_doc_id.clone()]),
             None,
             Some(vec!["metadatas".to_string()]),
+            None,
+            None,
         )
         .await?;
 
@@ -954,6 +974,8 @@ pub async fn clustering_get_positions() -> Result<Vec<ClusterPosition>, Clusteri
                 "embeddings".to_string(),
                 "metadatas".to_string(),
             ]),
+            None,
+            None,
         )
         .await?;
 

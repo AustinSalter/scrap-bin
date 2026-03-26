@@ -82,6 +82,8 @@ pub async fn threads_detect(
                 "embeddings".to_string(),
                 "metadatas".to_string(),
             ]),
+            None,
+            None,
         )
         .await?;
 
@@ -118,7 +120,7 @@ pub async fn threads_detect(
     let threads_coll_id = get_collection_id(COLLECTION_THREADS).await?;
 
     // Clear previous thread entries.
-    let existing = client.get(&threads_coll_id, None, None, None).await?;
+    let existing = client.get(&threads_coll_id, None, None, None, None, None).await?;
     if !existing.ids.is_empty() {
         client.delete(&threads_coll_id, existing.ids).await?;
     }
@@ -186,6 +188,8 @@ pub async fn threads_get_all() -> Result<Vec<ThreadView>, ThreadError> {
             None,
             None,
             Some(vec!["metadatas".to_string()]),
+            None,
+            None,
         )
         .await?;
 

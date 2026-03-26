@@ -165,11 +165,24 @@ fn split_to_fit(text: &str, max_tokens: usize) -> Vec<String> {
                             result.push(sent_buf);
                             sent_buf = String::new();
                         }
-                        // If a single sentence still exceeds, hard truncate.
+                        // If a single sentence still exceeds, hard truncate in a loop.
                         if estimate_tokens(sent) > max_tokens {
                             let char_limit = max_tokens * 4;
-                            let truncated: String = sent.chars().take(char_limit).collect();
-                            result.push(truncated);
+                            let mut remaining = sent;
+                            while !remaining.is_empty() {
+                                let truncated: String = remaining.chars().take(char_limit).collect();
+                                // `truncated.len()` is the byte length of the chars we took,
+                                // which is the correct offset for slicing the original `&str`.
+                                let consumed = truncated.len();
+                                result.push(truncated);
+                                remaining = &remaining[consumed..];
+                                if estimate_tokens(remaining) <= max_tokens {
+                                    if !remaining.trim().is_empty() {
+                                        sent_buf = remaining.to_string();
+                                    }
+                                    break;
+                                }
+                            }
                         } else {
                             sent_buf = sent.to_string();
                         }

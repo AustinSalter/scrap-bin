@@ -1,0 +1,177 @@
+/* ── Fragment Highlights — Priority Colors ────────────── */
+
+mark.mark-critical {
+  background: var(--mark-critical-bg);
+  border-bottom: 2px solid var(--mark-critical);
+  color: inherit;
+  border-radius: 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.mark-critical:hover { background: rgba(248, 113, 113, 0.22); }
+
+mark.mark-important {
+  background: var(--mark-important-bg);
+  border-bottom: 2px solid var(--mark-important);
+  color: inherit;
+  border-radius: 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.mark-important:hover { background: rgba(251, 191, 36, 0.26); }
+
+mark.mark-interesting {
+  background: var(--mark-interesting-bg);
+  border-bottom: 2px solid var(--mark-interesting);
+  color: inherit;
+  border-radius: 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.mark-interesting:hover { background: rgba(96, 165, 250, 0.22); }
+
+mark.mark-later {
+  background: var(--mark-later-bg);
+  border-bottom: 2px solid var(--mark-later);
+  color: inherit;
+  border-radius: 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.mark-later:hover { background: rgba(167, 139, 250, 0.20); }
+
+mark.mark-reference {
+  background: var(--mark-reference-bg);
+  border-bottom: 2px solid var(--mark-reference);
+  color: inherit;
+  border-radius: 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.mark-reference:hover { background: rgba(52, 211, 153, 0.22); }
+
+/* ── Floating Toolbar ────────────────────────────────── */
+
+.floating-toolbar {
+  position: fixed;
+  z-index: 9000;
+  background: var(--ink, #09090b);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+}
+
+.floating-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 2px;
+}
+
+/* Pen button (colored nib) */
+.pen-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.pen-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pen-btn .pen-nib {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.pen-btn .pen-key {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-family: 'Cousine', monospace;
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1;
+}
+
+/* Action buttons (Remove, Copy) */
+.toolbar-action {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.toolbar-action:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Highlight Gutter ────────────────────────────────── */
+
+.highlight-gutter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+  pointer-events: auto;
+}
+
+.gutter-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  position: absolute;
+}
+
+.gutter-dot:hover {
+  transform: scale(2);
+}
+
+/* ── Mark Pips (stream sidebar) ──────────────────────── */
+
+.mark-pips {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.mark-pip {
+  width: 8px;
+  height: 3px;
+  border-radius: 1px;
+}

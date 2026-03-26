@@ -3,10 +3,12 @@ import '../styles/rail.css';
 
 export function Rail() {
   const activeRailIcon = useAppStore((s) => s.activeRailIcon);
+  const activeView = useAppStore((s) => s.activeView);
   const hasNewItems = useAppStore((s) => s.hasNewItems);
   const goOverview = useAppStore((s) => s.goOverview);
   const toggleStream = useAppStore((s) => s.toggleStream);
   const goThreaded = useAppStore((s) => s.goThreaded);
+  const setActiveView = useAppStore((s) => s.setActiveView);
 
   return (
     <nav className="rail">
@@ -43,6 +45,7 @@ export function Rail() {
 
       <button
         className={`rail-icon glyph-sm drag-region-exempt${activeRailIcon === 'settings' ? ' active' : ''}`}
+        onClick={() => setActiveView(activeView === 'settings' ? 'landscape' : 'settings')}
         title="Settings"
         aria-label="Settings"
       >

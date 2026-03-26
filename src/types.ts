@@ -1,4 +1,100 @@
-export type SourceType = 'vault' | 'twitter' | 'readwise' | 'podcast';
+export type SourceType = 'vault' | 'twitter' | 'readwise' | 'podcast' | 'rss' | 'apple_notes';
+
+export type Disposition = 'signal' | 'inbox' | 'ignored';
+
+export interface SourceConfig {
+  id: string;
+  source_type: SourceType;
+  display_name: string;
+  config: Record<string, unknown>;
+  default_disposition: Disposition;
+  sync_schedule: string | null;
+  enabled: boolean;
+  vault_subfolder: string | null;
+}
+
+export interface VaultInfo {
+  path: string;
+  file_count: number;
+  folder_count: number;
+  is_watching: boolean;
+}
+
+export interface TestSourceResult {
+  success: boolean;
+  message: string;
+}
+
+export interface SyncSourceResult {
+  success: boolean;
+  message: string;
+  fragments_imported: number;
+}
+
+export interface AuthStartResult {
+  auth_url: string;
+  state: string;
+}
+
+export interface TwitterConnectionInfo {
+  user_id: string | null;
+  username: string | null;
+  connected: boolean;
+}
+
+export interface TwitterSyncResult {
+  imported: number;
+  skipped: number;
+  threads_detected: number;
+  errors: string[];
+  pages_fetched: number;
+  stop_reason: string;
+  retry_after_secs: number | null;
+}
+
+export interface OEmbedResponse {
+  html: string;
+  author_name: string;
+  author_url: string;
+}
+
+export interface ReadwiseImportResult {
+  imported: number;
+  total_fetched: number;
+}
+
+export interface RssAddFeedResult {
+  source_id: string;
+  feed_title: string;
+  feed_url: string;
+}
+
+export interface RssPollResult {
+  imported: number;
+  skipped: number;
+  entries_fetched: number;
+  feed_title: string;
+}
+
+export interface RssCheckResult {
+  reachable: boolean;
+  feed_title: string | null;
+  entry_count: number;
+}
+
+export interface AppleNotesScanResult {
+  imported: number;
+  files_scanned: number;
+  errors: string[];
+}
+
+export interface HighlightRange {
+  start: number;
+  end: number;
+  text: string;
+  /** Priority: 1=Critical, 2=Important, 3=Interesting, 4=Revisit, 5=Reference */
+  priority: number;
+}
 
 export interface Fragment {
   id: string;
@@ -10,6 +106,31 @@ export interface Fragment {
   isYourNote: boolean;
   clusterId: number;
   headingPath: string[];
+  disposition: Disposition;
+  highlights: HighlightRange[];
+  metadata: Record<string, unknown>;
+}
+
+export type TriageTab = 'all' | 'signal' | 'inbox';
+
+export interface FragmentFilter {
+  source_type?: string;
+  disposition?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface FragmentPage {
+  fragments: Fragment[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface DispositionCounts {
+  signal: number;
+  inbox: number;
+  ignored: number;
 }
 
 export interface ClusterView {
@@ -37,6 +158,13 @@ export interface ThreadView {
   sourceClusterId: number;
   targetClusterId: number;
   similarity: number;
+}
+
+export interface ExtractedArticle {
+  url: string;
+  title: string | null;
+  text: string;
+  word_count: number;
 }
 
 export interface SearchResult {

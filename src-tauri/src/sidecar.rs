@@ -146,8 +146,8 @@ fn spawn_python_sidecar(port: u16) -> Result<Child, SidecarError> {
         .arg(script_path)
         .arg("--port")
         .arg(port.to_string())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::inherit())
         .spawn()
         .map_err(|e| SidecarError::SpawnFailed(e.to_string()))?;
 
@@ -175,26 +175,9 @@ fn wait_for_python_health(deadline: Duration) -> Result<(), SidecarError> {
                                 .code()
                                 .map(|c| c.to_string())
                                 .unwrap_or_else(|| "unknown".to_string());
-                            let stderr = child
-                                .stderr
-                                .take()
-                                .and_then(|mut s| {
-                                    let mut buf = String::new();
-                                    std::io::Read::read_to_string(&mut s, &mut buf).ok()?;
-                                    Some(buf)
-                                })
-                                .unwrap_or_default();
-                            let stderr_trimmed = stderr.trim().to_string();
-                            if !stderr_trimmed.is_empty() {
-                                tracing::error!("Python sidecar stderr:\n{stderr_trimmed}");
-                            }
                             return Err(SidecarError::ProcessExited {
                                 code,
-                                stderr: if stderr_trimmed.is_empty() {
-                                    "(no stderr captured)".to_string()
-                                } else {
-                                    stderr_trimmed
-                                },
+                                stderr: "(stderr inherited — check terminal output)".to_string(),
                             });
                         }
                         Ok(None) => { /* still running */ }
@@ -481,9 +464,16 @@ fn build_status(chroma_port: u16, python_port: u16) -> SidecarStatus {
 
 #[tauri::command]
 pub async fn sidecar_start_all() -> Result<SidecarStatus, SidecarError> {
-    tokio::task::spawn_blocking(start_all)
+    let status = tokio::task::spawn_blocking(start_all)
         .await
-        .map_err(|e| SidecarError::Io(e.to_string()))?
+        .map_err(|e| SidecarError::Io(e.to_string()))??;
+
+    // Ensure all Chroma collections exist now that Chroma is running.
+    if let Err(e) = crate::chroma::collections::ensure_all_collections().await {
+        tracing::error!("Failed to ensure Chroma collections: {e}");
+    }
+
+    Ok(status)
 }
 
 #[tauri::command]

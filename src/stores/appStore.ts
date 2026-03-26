@@ -1,11 +1,17 @@
 import { create } from 'zustand';
 import type {
   ClusterView,
+  Disposition,
+  DispositionCounts,
+  ExtractedArticle,
   Fragment,
+  HighlightRange,
+  SourceType,
   StreamItem,
   ThreadView,
   StatusData,
   SearchResult,
+  TriageTab,
 } from '../types';
 import {
   sidecarStartAll,
@@ -26,6 +32,11 @@ import {
   pipelineCreateNote,
   configGet,
   watcherStart,
+  listFragments,
+  setDisposition,
+  setHighlights,
+  getDispositionCounts,
+  extractArticle,
 } from '../api/commands';
 import {
   deriveStatusData,
@@ -34,6 +45,8 @@ import {
 
 export type UIState = 'overview' | 'browsing' | 'threaded';
 export type RailIcon = 'landscape' | 'stream' | 'search' | 'settings';
+export type ActiveView = 'landscape' | 'settings' | 'stream-triage' | 'inbox-triage' | 'reader';
+export type InboxSourceFilter = 'all' | SourceType;
 
 interface LoadingState {
   clusters: boolean;
@@ -50,8 +63,12 @@ interface DragContext {
   fromCluster?: number;
 }
 
+export type ClusterViewMode = 'landscape' | 'grid';
+
 interface AppState {
+  activeView: ActiveView;
   uiState: UIState;
+  clusterViewMode: ClusterViewMode;
   streamOpen: boolean;
   marginOpen: boolean;
   selectedClusterId: number | null;
@@ -74,6 +91,32 @@ interface AppState {
 
   // Internal state
   _fragmentFetchGen: number;
+  _inboxFetchGen: number;
+
+  // Triage state
+  triageTab: TriageTab;
+  triageFragments: Fragment[];
+  triageSelectedId: string | null;
+  triageTotal: number;
+  triageCounts: DispositionCounts;
+  triagePage: number;
+  triageLoading: boolean;
+
+  // Inbox triage state
+  inboxCards: Fragment[];
+  inboxSourceFilter: InboxSourceFilter;
+  inboxTriagedCount: number;
+  inboxTotalCount: number;
+  inboxLoading: boolean;
+  inboxAnimating: 'swipe-right' | 'swipe-left' | 'swipe-up' | null;
+
+  // Reader state
+  activeReader: {
+    fragmentId: string;
+    article: ExtractedArticle;
+    highlights: HighlightRange[];
+    previousView: ActiveView;
+  } | null;
 
   // Interaction state
   dragContext: DragContext | null;
@@ -82,6 +125,7 @@ interface AppState {
   highlightedClusterIds: number[];
 
   // Sync actions
+  setActiveView: (view: ActiveView) => void;
   goOverview: () => void;
   goBrowsing: (clusterId: number) => void;
   goThreaded: (threadId?: string) => void;
@@ -96,6 +140,28 @@ interface AppState {
   clearDragContext: () => void;
   setEditingCluster: (id: number | null) => void;
   setEditingThread: (id: string | null) => void;
+  setClusterViewMode: (mode: ClusterViewMode) => void;
+
+  // Inbox triage actions
+  goInboxTriage: () => void;
+  setInboxSourceFilter: (filter: InboxSourceFilter) => void;
+  fetchInboxCards: (sourceFilter?: InboxSourceFilter) => Promise<void>;
+  inboxDismiss: () => Promise<void>;
+  inboxSkip: () => void;
+  inboxPromote: () => Promise<void>;
+
+  // Triage actions
+  goStreamTriage: () => void;
+  setTriageTab: (tab: TriageTab) => void;
+  setTriageSelectedId: (id: string | null) => void;
+  fetchTriageFragments: (tab?: TriageTab, page?: number) => Promise<void>;
+  fetchTriageCounts: () => Promise<void>;
+  triageDisposition: (id: string, disposition: Disposition) => Promise<void>;
+  saveHighlights: (id: string, highlights: HighlightRange[]) => Promise<void>;
+
+  // Reader actions
+  openReader: (fragmentId: string, url: string, highlights: HighlightRange[]) => Promise<void>;
+  closeReader: () => void;
 
   // Async actions
   fetchInitialData: () => Promise<void>;
@@ -120,7 +186,9 @@ const defaultStatus: StatusData = {
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
+  activeView: 'landscape',
   uiState: 'overview',
+  clusterViewMode: 'landscape',
   streamOpen: false,
   marginOpen: false,
   selectedClusterId: null,
@@ -150,6 +218,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Internal state
   _fragmentFetchGen: 0,
+  _inboxFetchGen: 0,
+
+  // Inbox triage state
+  inboxCards: [],
+  inboxSourceFilter: 'all',
+  inboxTriagedCount: 0,
+  inboxTotalCount: 0,
+  inboxLoading: false,
+  inboxAnimating: null,
+
+  // Reader state
+  activeReader: null,
+
+  // Triage state
+  triageTab: 'all',
+  triageFragments: [],
+  triageSelectedId: null,
+  triageTotal: 0,
+  triageCounts: { signal: 0, inbox: 0, ignored: 0 },
+  triagePage: 0,
+  triageLoading: false,
 
   // Interaction state
   dragContext: null,
@@ -159,8 +248,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── Sync actions ──────────────────────────────────────────
 
+  setActiveView: (view) =>
+    set({
+      activeView: view,
+      activeRailIcon: view === 'settings' ? 'settings'
+        : view === 'stream-triage' || view === 'inbox-triage' ? 'stream'
+        : 'landscape',
+    }),
+
   goOverview: () =>
     set({
+      activeView: 'landscape',
       uiState: 'overview',
       streamOpen: false,
       marginOpen: false,
@@ -173,6 +271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   goBrowsing: (clusterId) => {
     set({
+      activeView: 'landscape',
       uiState: 'browsing',
       streamOpen: true,
       marginOpen: true,
@@ -193,6 +292,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
     set({
+      activeView: 'landscape',
       uiState: 'threaded',
       streamOpen: false,
       marginOpen: false,
@@ -204,16 +304,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  toggleStream: () =>
-    set((s) => {
-      const willOpen = !s.streamOpen;
-      return {
-        streamOpen: willOpen,
-        activeRailIcon: willOpen ? 'stream' : 'landscape',
-        uiState: willOpen ? 'browsing' : 'overview',
-        marginOpen: willOpen ? s.marginOpen : false,
-      };
-    }),
+  toggleStream: () => {
+    const { activeView } = get();
+    if (activeView === 'stream-triage' || activeView === 'inbox-triage') {
+      get().goOverview();
+    } else {
+      get().goStreamTriage();
+    }
+  },
 
   selectCluster: (id) => {
     set({ selectedClusterId: id, marginOpen: true });
@@ -243,6 +341,262 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearDragContext: () => set({ dragContext: null }),
   setEditingCluster: (id) => set({ editingClusterId: id }),
   setEditingThread: (id) => set({ editingThreadId: id }),
+  setClusterViewMode: (mode) => set({ clusterViewMode: mode }),
+
+  // ── Inbox triage actions ──────────────────────────────
+
+  goInboxTriage: () => {
+    set({
+      activeView: 'inbox-triage',
+      activeRailIcon: 'stream',
+      inboxTriagedCount: 0,
+      inboxTotalCount: 0,
+      inboxSourceFilter: 'all',
+      inboxAnimating: null,
+    });
+    get().fetchInboxCards('all');
+  },
+
+  setInboxSourceFilter: (filter) => {
+    set({
+      inboxSourceFilter: filter,
+      inboxTriagedCount: 0,
+      inboxTotalCount: 0,
+      inboxAnimating: null,
+    });
+    get().fetchInboxCards(filter);
+  },
+
+  fetchInboxCards: async (sourceFilter) => {
+    const filter = sourceFilter ?? get().inboxSourceFilter;
+    const gen = get()._inboxFetchGen + 1;
+    set({ inboxLoading: true, _inboxFetchGen: gen });
+    try {
+      const result = await listFragments({
+        disposition: 'inbox',
+        source_type: filter === 'all' ? undefined : filter,
+        page_size: 200,
+      });
+      if (get()._inboxFetchGen !== gen) return; // stale
+      set({
+        inboxCards: result.fragments,
+        inboxTotalCount: result.total,
+        inboxTriagedCount: 0,
+        inboxLoading: false,
+      });
+    } catch (e) {
+      if (get()._inboxFetchGen !== gen) return; // stale
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ inboxLoading: false, error: `Failed to load inbox: ${msg}` });
+    }
+  },
+
+  inboxDismiss: async () => {
+    const { inboxCards, inboxAnimating } = get();
+    if (inboxAnimating || inboxCards.length === 0) return;
+    const card = inboxCards[0];
+    set({ inboxAnimating: 'swipe-left' });
+    setTimeout(async () => {
+      try {
+        await setDisposition(card.id, 'ignored');
+        set((s) => ({
+          inboxCards: s.inboxCards.filter((c) => c.id !== card.id),
+          inboxTriagedCount: s.inboxTriagedCount + 1,
+          inboxAnimating: null,
+        }));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        set({ error: `Dismiss failed: ${msg}`, inboxAnimating: null });
+      }
+    }, 350);
+  },
+
+  inboxSkip: () => {
+    const { inboxCards, inboxAnimating } = get();
+    if (inboxAnimating || inboxCards.length === 0) return;
+    set({ inboxAnimating: 'swipe-up' });
+    setTimeout(() => {
+      set((s) => {
+        const [first, ...rest] = s.inboxCards;
+        return {
+          inboxCards: [...rest, first],
+          inboxAnimating: null,
+        };
+      });
+    }, 350);
+  },
+
+  inboxPromote: async () => {
+    const { inboxCards, inboxAnimating } = get();
+    if (inboxAnimating || inboxCards.length === 0) return;
+    const card = inboxCards[0];
+    set({ inboxAnimating: 'swipe-right' });
+    setTimeout(async () => {
+      try {
+        await setDisposition(card.id, 'signal');
+        set((s) => ({
+          inboxCards: s.inboxCards.filter((c) => c.id !== card.id),
+          inboxTriagedCount: s.inboxTriagedCount + 1,
+          inboxAnimating: null,
+        }));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        set({ error: `Promote failed: ${msg}`, inboxAnimating: null });
+      }
+    }, 350);
+  },
+
+  // ── Triage actions ─────────────────────────────────────
+
+  goStreamTriage: () => {
+    set({
+      activeView: 'stream-triage',
+      activeRailIcon: 'stream',
+      triageTab: 'all',
+      triagePage: 0,
+      triageSelectedId: null,
+    });
+    get().fetchTriageFragments('all', 0);
+    get().fetchTriageCounts();
+  },
+
+  setTriageTab: (tab) => {
+    set({ triageTab: tab, triagePage: 0 });
+    get().fetchTriageFragments(tab, 0);
+  },
+
+  setTriageSelectedId: (id) => set({ triageSelectedId: id }),
+
+  fetchTriageFragments: async (tab, page) => {
+    const currentTab = tab ?? get().triageTab;
+    const currentPage = page ?? get().triagePage;
+    set({ triageLoading: true });
+    try {
+      const disposition = currentTab === 'all' ? undefined : currentTab;
+      const result = await listFragments({
+        disposition,
+        page: currentPage,
+        page_size: 50,
+      });
+      set((s) => {
+        // Keep current selection if it exists in the new results, otherwise select first.
+        const currentStillExists = s.triageSelectedId
+          && result.fragments.some((f) => f.id === s.triageSelectedId);
+        return {
+          triageFragments: result.fragments,
+          triageTotal: result.total,
+          triagePage: result.page,
+          triageLoading: false,
+          triageSelectedId: currentStillExists
+            ? s.triageSelectedId
+            : (result.fragments.length > 0 ? result.fragments[0].id : null),
+        };
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ triageLoading: false, error: `Failed to load fragments: ${msg}` });
+    }
+  },
+
+  fetchTriageCounts: async () => {
+    try {
+      const counts = await getDispositionCounts();
+      set({ triageCounts: counts });
+    } catch {
+      // Non-fatal — counts will show stale data.
+    }
+  },
+
+  triageDisposition: async (id, disposition) => {
+    try {
+      const updatedFragment = await setDisposition(id, disposition);
+      const { triageFragments, triageTab, triageSelectedId } = get();
+
+      // On a filtered tab, remove the item from the list.
+      const isFiltered =
+        (triageTab !== 'all' && updatedFragment.disposition !== triageTab) ||
+        updatedFragment.disposition === 'ignored';
+      let newFragments: Fragment[];
+      if (isFiltered) {
+        newFragments = triageFragments.filter((f) => f.id !== id);
+      } else {
+        newFragments = triageFragments.map((f) =>
+          f.id === id ? updatedFragment : f
+        );
+      }
+
+      // Auto-advance to next item.
+      let nextId = triageSelectedId;
+      if (triageSelectedId === id) {
+        const oldIndex = triageFragments.findIndex((f) => f.id === id);
+        if (isFiltered) {
+          // Item removed: select the item that's now at the same index.
+          nextId = newFragments[oldIndex]?.id ?? newFragments[oldIndex - 1]?.id ?? null;
+        } else {
+          // Item updated: advance to the next item.
+          nextId = triageFragments[oldIndex + 1]?.id ?? triageSelectedId;
+        }
+      }
+
+      set({ triageFragments: newFragments, triageSelectedId: nextId });
+      get().fetchTriageCounts();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ error: `Triage failed: ${msg}` });
+    }
+  },
+
+  saveHighlights: async (id, highlights) => {
+    try {
+      const updatedFragment = await setHighlights(id, highlights);
+      const { triageFragments, inboxCards, activeReader } = get();
+
+      const newTriageFragments = triageFragments.map((f) =>
+        f.id === id ? updatedFragment : f
+      );
+      const newInboxCards = inboxCards.map((f) =>
+        f.id === id ? updatedFragment : f
+      );
+
+      const updates: Partial<ReturnType<typeof get>> = {
+        triageFragments: newTriageFragments,
+        inboxCards: newInboxCards,
+      };
+
+      // Also update the reader's highlights if it's showing this fragment
+      if (activeReader && activeReader.fragmentId === id) {
+        updates.activeReader = { ...activeReader, highlights };
+      }
+
+      set(updates);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ error: `Save highlights failed: ${msg}` });
+    }
+  },
+
+  openReader: async (fragmentId, url, highlights) => {
+    try {
+      const article = await extractArticle(url);
+      set({
+        activeReader: {
+          fragmentId,
+          article,
+          highlights,
+          previousView: get().activeView,
+        },
+        activeView: 'reader' as ActiveView,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ error: `Failed to extract article: ${msg}` });
+    }
+  },
+
+  closeReader: () => {
+    const prev = get().activeReader?.previousView ?? 'stream-triage';
+    set({ activeReader: null, activeView: prev });
+  },
 
   addStreamItems: (fragments) => {
     const { clusters, streamItems } = get();
@@ -296,6 +650,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           search: false, recluster: false, saveNote: false,
         },
       });
+
+      // Auto-cluster if fragments exist but no clusters yet.
+      if (statusData.fragmentCount > 0 && clusters.length === 0) {
+        tracing: console.info('[appStore] Fragments exist but 0 clusters — auto-clustering...');
+        get().recluster().catch(() => {
+          // Non-fatal — user can manually recluster later.
+        });
+      }
 
       // Start vault watcher if configured.
       if (config.vault_path) {

@@ -11,6 +11,9 @@ pub const COLLECTION_VAULT: &str = "vault";
 pub const COLLECTION_TWITTER: &str = "twitter";
 pub const COLLECTION_READWISE: &str = "readwise";
 pub const COLLECTION_PODCASTS: &str = "podcasts";
+pub const COLLECTION_RSS: &str = "rss";
+pub const COLLECTION_APPLE_NOTES: &str = "apple_notes";
+pub const COLLECTION_CHROME_BOOKMARKS: &str = "chrome_bookmarks";
 pub const COLLECTION_CLUSTERS: &str = "clusters";
 pub const COLLECTION_THREADS: &str = "threads";
 
@@ -19,6 +22,9 @@ pub const ALL_COLLECTIONS: &[&str] = &[
     COLLECTION_TWITTER,
     COLLECTION_READWISE,
     COLLECTION_PODCASTS,
+    COLLECTION_RSS,
+    COLLECTION_APPLE_NOTES,
+    COLLECTION_CHROME_BOOKMARKS,
     COLLECTION_CLUSTERS,
     COLLECTION_THREADS,
 ];
@@ -29,6 +35,9 @@ pub const CONTENT_COLLECTIONS: &[&str] = &[
     COLLECTION_TWITTER,
     COLLECTION_READWISE,
     COLLECTION_PODCASTS,
+    COLLECTION_RSS,
+    COLLECTION_APPLE_NOTES,
+    COLLECTION_CHROME_BOOKMARKS,
 ];
 
 // ---------------------------------------------------------------------------

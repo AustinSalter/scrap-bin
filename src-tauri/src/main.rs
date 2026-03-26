@@ -4,10 +4,12 @@ mod chroma;
 mod chunker;
 mod clustering;
 mod config;
+mod content_extractor;
 mod fragment;
 mod grpc_client;
 mod markdown;
 mod pipeline;
+mod reader;
 mod search;
 mod sidecar;
 mod sources;
@@ -35,11 +37,16 @@ fn main() {
             config::config_get,
             config::config_set,
             config::config_get_data_dir,
+            config::list_sources,
+            config::add_source,
+            config::update_source,
+            config::remove_source,
             // Watcher
             watcher::watcher_start,
             watcher::watcher_stop,
             watcher::watcher_is_active,
             watcher::watcher_get_vault_path,
+            watcher::watcher_get_vault_info,
             // Sidecar management
             sidecar::sidecar_start_all,
             sidecar::sidecar_stop_all,
@@ -67,10 +74,24 @@ fn main() {
             threads::threads_dismiss,
             // Sources
             sources::twitter::source_twitter_import,
+            sources::twitter::source_twitter_auth_start,
+            sources::twitter::source_twitter_sync,
+            sources::twitter::source_twitter_check_connection,
+            sources::twitter::fetch_tweet_oembed,
             sources::readwise::source_readwise_import,
             sources::readwise::source_readwise_configure,
             sources::readwise::source_readwise_check_connection,
             sources::podcasts::source_podcasts_import,
+            sources::rss::source_rss_add_feed,
+            sources::rss::source_rss_poll,
+            sources::rss::source_rss_poll_all,
+            sources::rss::source_rss_check_connection,
+            sources::apple_notes::source_apple_notes_scan,
+            sources::apple_notes::source_apple_notes_check,
+            sources::chrome::source_chrome_import_bookmarks,
+            sources::twitter::source_twitter_expand_urls,
+            sources::test_source,
+            sources::sync_source,
             // Pipeline
             pipeline::pipeline_index_vault,
             pipeline::pipeline_index_file,
@@ -80,6 +101,16 @@ fn main() {
             // Search
             search::search_all,
             search::search_collection,
+            // Fragment querying
+            search::list_fragments,
+            search::get_fragment,
+            search::get_disposition_counts,
+            search::get_inbox,
+            // Fragment mutation
+            pipeline::set_disposition,
+            pipeline::set_highlights,
+            // Reader
+            reader::extract_article,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,0 +1,431 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 520px;
+  max-height: 80vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--primary);
+}
+
+.modal-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--card-radius);
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.modal-close:hover {
+  background: var(--bg3);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+
+/* ── Tier labels ───────────────────────────────────── */
+
+.tier-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+
+.tier-label:first-child {
+  margin-top: 0;
+}
+
+.tier-hint {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--ghost);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* ── Source option cards ───────────────────────────── */
+
+.source-list-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.source-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.source-option:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.source-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.source-option-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--bg3);
+  font-size: 16px;
+  background: var(--bg3);
+  flex-shrink: 0;
+}
+
+.source-option-info {
+  flex: 1;
+}
+
+.source-option-name {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.source-option-method {
+  font-family: 'Cousine', monospace;
+  font-size: 11px;
+  color: var(--ghost);
+  margin-top: 1px;
+}
+
+.source-option-tag {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--ok);
+  background: rgba(34, 197, 94, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.source-option-tag.needs-key {
+  color: var(--muted);
+  background: var(--bg3);
+}
+
+.source-option-tag.manual {
+  color: var(--ghost);
+  background: var(--bg3);
+}
+
+/* ── Config section (step 2) ───────────────────────── */
+
+.config-section {
+  margin-top: 24px;
+}
+
+/* ── Feed list (RSS) ───────────────────────────────── */
+
+.feed-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bg3);
+  font-size: 13px;
+}
+
+.feed-item:last-child {
+  border-bottom: none;
+}
+
+.feed-name {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 100px;
+  color: var(--primary);
+}
+
+.feed-url {
+  flex: 1;
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-remove {
+  color: var(--ghost);
+  cursor: pointer;
+  font-size: 14px;
+  background: none;
+  border: none;
+  padding: 2px;
+}
+
+.feed-remove:hover {
+  color: var(--err);
+}
+
+.add-feed-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-feed-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--primary);
+  background: var(--bg3);
+}
+
+.add-feed-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+.add-feed-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.add-feed-btn:hover {
+  border-color: var(--muted);
+}
+
+.add-feed-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Apple Notes instructions ──────────────────────── */
+
+.instruction-block {
+  background: var(--bg3);
+  border: 1px solid var(--bg3);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.instruction-step {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+
+.instruction-step:last-child {
+  margin-bottom: 0;
+}
+
+.instruction-num {
+  width: 22px;
+  height: 22px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cousine', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Test/status row ───────────────────────────────── */
+
+.test-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.test-row.error {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.test-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--ok);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.test-row.error .test-icon {
+  background: var(--err);
+}
+
+.test-text {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  color: var(--ok);
+  flex: 1;
+}
+
+.test-row.error .test-text {
+  color: var(--err);
+}
+
+/* ── Modal Footer ──────────────────────────────────── */
+
+.modal-footer {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step-indicator {
+  display: flex;
+  gap: 6px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.step-dot.active {
+  background: var(--accent);
+}
+
+.step-dot.done {
+  background: var(--ok);
+}
+
+.footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-back {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.btn-back:hover {
+  border-color: var(--muted);
+}
+
+.btn-connect {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 7px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--ink);
+  color: white;
+  cursor: pointer;
+}
+
+.btn-connect:hover {
+  opacity: 0.85;
+}
+
+.btn-connect:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

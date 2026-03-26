@@ -1,0 +1,300 @@
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 380px;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  z-index: 51;
+  transform: translateX(100%);
+  transition: transform var(--transition-smooth);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--primary);
+}
+
+.drawer-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--card-radius);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.drawer-close:hover {
+  background: var(--bg3);
+}
+
+.drawer-body {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Cousine', monospace;
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--bg3);
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+  background: var(--bg);
+}
+
+.field-input:read-only {
+  color: var(--muted);
+  cursor: default;
+}
+
+.field-hint {
+  font-family: 'Lora', serif;
+  font-size: 11px;
+  color: var(--ghost);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── Disposition Picker ────────────────────────────── */
+
+.disposition-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.disposition-option {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: none;
+}
+
+.disposition-option:hover {
+  border-color: var(--muted);
+}
+
+.disposition-option.selected.signal {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.disposition-option.selected.inbox {
+  border-color: var(--muted);
+  background: var(--bg3);
+}
+
+.disposition-option-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.disposition-option-hint {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--ghost);
+  margin-top: 2px;
+}
+
+/* ── Drawer Footer ─────────────────────────────────── */
+
+.drawer-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+.btn-primary {
+  flex: 1;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 7px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--ink);
+  color: white;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  opacity: 0.85;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-secondary {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: var(--muted);
+}
+
+.btn-secondary.confirm-remove {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+/* ── Readwise feeds display ────────────────────────── */
+
+.readwise-feeds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border-radius: 7px;
+}
+
+.readwise-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Cousine', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.readwise-feed-label {
+  font-family: 'Lora', serif;
+  color: var(--primary);
+  font-weight: 500;
+  min-width: 90px;
+}
+
+/* ── Sync row ──────────────────────────────────────── */
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-info {
+  font-family: 'Cousine', monospace;
+  font-size: 13px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.btn-sync {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-sync:hover {
+  border-color: var(--muted);
+}
+
+.btn-sync:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Schedule select ───────────────────────────────── */
+
+.field-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'Cousine', monospace;
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--bg3);
+}

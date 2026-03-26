@@ -3,6 +3,10 @@ import { Rail } from './Rail';
 import { StreamPanel } from './StreamPanel';
 import { Landscape } from './Landscape';
 import { MarginPanel } from './MarginPanel';
+import { SettingsPanel } from './settings/SettingsPanel';
+import { StreamTriageView } from './stream-triage/StreamTriageView';
+import { InboxTriageView } from './inbox-triage/InboxTriageView';
+import { Reader } from './reader/Reader';
 import { ErrorToast } from './ErrorToast';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useInitialize } from '../hooks/useInitialize';
@@ -19,6 +23,7 @@ export function AppShell() {
 
   const fetchStatus = useAppStore((s) => s.fetchStatus);
   const loading = useAppStore((s) => s.loading);
+  const activeView = useAppStore((s) => s.activeView);
 
   // Status polling every 30 seconds after initialization.
   useEffect(() => {
@@ -32,9 +37,21 @@ export function AppShell() {
       <div className="drag-region" />
       <div className="app-shell">
         <Rail />
-        <StreamPanel />
-        <Landscape />
-        <MarginPanel />
+        {activeView === 'settings' ? (
+          <SettingsPanel />
+        ) : activeView === 'reader' ? (
+          <Reader />
+        ) : activeView === 'inbox-triage' ? (
+          <InboxTriageView />
+        ) : activeView === 'stream-triage' ? (
+          <StreamTriageView />
+        ) : (
+          <>
+            <StreamPanel />
+            <Landscape />
+            <MarginPanel />
+          </>
+        )}
       </div>
       <ErrorToast />
     </>

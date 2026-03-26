@@ -9,7 +9,7 @@ use crate::chroma::collections::{
     get_collection_id, COLLECTION_VAULT, CONTENT_COLLECTIONS,
 };
 use crate::chunker;
-use crate::fragment::{self, Fragment, SourceType};
+use crate::fragment::{self, Disposition, Fragment, SourceType};
 use crate::grpc_client::{get_grpc_client, GrpcError};
 use crate::markdown;
 use crate::state;
@@ -32,6 +32,8 @@ pub enum PipelineError {
     VaultNotFound(String),
     #[error("File not found: {0}")]
     FileNotFound(String),
+    #[error("Fragment not found: {0}")]
+    FragmentNotFound(String),
 }
 
 impl Serialize for PipelineError {
@@ -212,6 +214,8 @@ pub async fn process_file(
                 content_hash,
                 modified_at: now.clone(),
                 cluster_id: None,
+                disposition: fragment::Disposition::Inbox,
+                highlights: vec![],
                 metadata: serde_json::json!({}),
             }
         })
@@ -352,7 +356,7 @@ pub async fn pipeline_index_file(
 pub async fn pipeline_get_stats() -> Result<PipelineStats, PipelineError> {
     let client = get_client();
 
-    let collection_names = &["vault", "twitter", "readwise", "podcasts"];
+    let collection_names = CONTENT_COLLECTIONS;
     let mut collection_stats: Vec<CollectionStat> = Vec::new();
     let mut total_chunks: usize = 0;
 
@@ -424,6 +428,7 @@ pub async fn pipeline_create_note(
         "content_hash": content_hash,
         "modified_at": now,
         "cluster_id": cluster_id,
+        "disposition": "inbox",
         "is_user_note": true,
     });
 
@@ -451,6 +456,8 @@ pub async fn pipeline_create_note(
                         Some(vec![doc_id.clone()]),
                         None,
                         Some(vec!["metadatas".to_string()]),
+                        None,
+                        None,
                     )
                     .await;
 
@@ -535,6 +542,8 @@ pub async fn pipeline_get_recent(
                     "documents".to_string(),
                     "metadatas".to_string(),
                 ]),
+                None,
+                None,
             )
             .await;
 
@@ -584,4 +593,171 @@ pub async fn pipeline_get_recent(
     fragments.truncate(max_results);
 
     Ok(fragments)
+}
+
+/// Update a fragment's disposition (signal / inbox / ignored) in Chroma.
+/// Searches across all content collections to find the fragment, updates its
+/// metadata, and returns the updated Fragment.
+#[tauri::command]
+pub async fn set_disposition(
+    id: String,
+    disposition: Disposition,
+) -> Result<Fragment, PipelineError> {
+    let client = get_client();
+
+    for coll_name in CONTENT_COLLECTIONS {
+        let coll_id = match get_collection_id(coll_name).await {
+            Ok(id) => id,
+            Err(ChromaError::CollectionNotFound(_)) => continue,
+            Err(e) => return Err(PipelineError::Chroma(e)),
+        };
+
+        let result = client
+            .get(
+                &coll_id,
+                Some(vec![id.clone()]),
+                None,
+                Some(vec![
+                    "documents".to_string(),
+                    "metadatas".to_string(),
+                ]),
+                None,
+                None,
+            )
+            .await;
+
+        if let Ok(result) = result {
+            if !result.ids.is_empty() {
+                // Found the fragment — update its disposition.
+                client
+                    .update_metadata(
+                        &coll_id,
+                        vec![id.clone()],
+                        vec![serde_json::json!({ "disposition": disposition.to_string() })],
+                    )
+                    .await?;
+
+                // Reconstruct the fragment with the updated disposition.
+                let doc = result
+                    .documents
+                    .as_ref()
+                    .and_then(|docs| docs.first().cloned())
+                    .flatten()
+                    .unwrap_or_default();
+                let meta = result
+                    .metadatas
+                    .as_ref()
+                    .and_then(|metas| metas.first().cloned())
+                    .flatten()
+                    .unwrap_or(serde_json::json!({}));
+
+                let mut frag = fragment::chroma_to_fragment(id, doc, &meta);
+                frag.disposition = disposition;
+                return Ok(frag);
+            }
+        }
+    }
+
+    Err(PipelineError::FragmentNotFound(id))
+}
+
+/// Update a fragment's highlights and re-embed using only the highlighted text.
+/// When highlights is empty, re-embeds using the full fragment content (restoring
+/// the original semantic vector).
+///
+/// Highlights metadata is always persisted to Chroma first. Re-embedding via the
+/// Python sidecar is best-effort — if the sidecar is unavailable the embedding
+/// update is deferred until the next clustering run.
+#[tauri::command]
+pub async fn set_highlights(
+    id: String,
+    highlights: Vec<fragment::HighlightRange>,
+) -> Result<Fragment, PipelineError> {
+    let client = get_client();
+
+    for coll_name in CONTENT_COLLECTIONS {
+        let coll_id = match get_collection_id(coll_name).await {
+            Ok(id) => id,
+            Err(ChromaError::CollectionNotFound(_)) => continue,
+            Err(e) => return Err(PipelineError::Chroma(e)),
+        };
+
+        let result = client
+            .get(
+                &coll_id,
+                Some(vec![id.clone()]),
+                None,
+                Some(vec![
+                    "documents".to_string(),
+                    "metadatas".to_string(),
+                ]),
+                None,
+                None,
+            )
+            .await;
+
+        if let Ok(result) = result {
+            if !result.ids.is_empty() {
+                let doc = result
+                    .documents
+                    .as_ref()
+                    .and_then(|docs| docs.first().cloned())
+                    .flatten()
+                    .unwrap_or_default();
+
+                // Serialize highlights to JSON string for Chroma metadata.
+                let highlights_json = if highlights.is_empty() {
+                    String::new()
+                } else {
+                    serde_json::to_string(&highlights).unwrap_or_default()
+                };
+
+                // Always persist highlights metadata first.
+                // Then attempt re-embedding as a best-effort step.
+                let embed_text = if highlights.is_empty() {
+                    doc.clone()
+                } else {
+                    highlights.iter().map(|h| h.text.as_str()).collect::<Vec<_>>().join(" ")
+                };
+
+                let new_embedding = match get_grpc_client() {
+                    Ok(grpc) => match grpc.embed(&embed_text).await {
+                        Ok(emb) => Some(emb),
+                        Err(e) => {
+                            tracing::warn!("Failed to re-embed highlights (will use stale embedding): {e}");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("gRPC client unavailable for re-embedding: {e}");
+                        None
+                    }
+                };
+
+                client
+                    .update(
+                        &coll_id,
+                        vec![id.clone()],
+                        new_embedding.map(|e| vec![e]),
+                        None,
+                        Some(vec![serde_json::json!({ "highlights": highlights_json })]),
+                    )
+                    .await?;
+
+                // Reconstruct the fragment with updated highlights.
+                let meta = result
+                    .metadatas
+                    .as_ref()
+                    .and_then(|metas| metas.first().cloned())
+                    .flatten()
+                    .unwrap_or(serde_json::json!({}));
+
+                let mut frag = fragment::chroma_to_fragment(id, doc, &meta);
+                frag.highlights = highlights;
+                return Ok(frag);
+            }
+        }
+    }
+
+    Err(PipelineError::FragmentNotFound(id))
 }

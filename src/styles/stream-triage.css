@@ -1,0 +1,629 @@
+/* ── Stream Triage View ──────────────────────────────────── */
+
+.triage-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.triage-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+
+.triage-sidebar {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.triage-sidebar-header {
+  padding: 12px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.triage-sidebar-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+}
+
+.triage-sidebar-count {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Tabs ──────────────────────────────────────────────── */
+
+.triage-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.triage-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 0;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.triage-tab:hover {
+  color: var(--primary);
+}
+
+.triage-tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.triage-tab-count {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+
+.triage-tab.is-active .triage-tab-count {
+  color: var(--accent);
+}
+
+/* ── Sidebar body ──────────────────────────────────────── */
+
+.triage-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.triage-sidebar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: 'Lora', serif;
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--ghost);
+}
+
+/* ── Sidebar item ──────────────────────────────────────── */
+
+.triage-sidebar-item {
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-left: 2px solid transparent;
+}
+
+.triage-sidebar-item:hover {
+  background: var(--bg2);
+}
+
+.triage-sidebar-item.is-selected {
+  background: var(--accent-bg);
+  border-left-color: var(--accent);
+}
+
+.triage-sidebar-item-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+
+.triage-sidebar-item-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.triage-sidebar-item-source {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+
+.triage-sidebar-item-time {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  margin-left: auto;
+}
+
+.triage-sidebar-item-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 11px;
+  color: var(--primary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.triage-sidebar-item-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.triage-sidebar-item-cluster {
+  font-family: 'Cousine', monospace;
+  font-size: 7px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-12);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.triage-sidebar-item-disposition {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Detail pane ───────────────────────────────────────── */
+
+.detail-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  overflow-y: auto;
+}
+
+.detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ghost);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px 0;
+  flex-shrink: 0;
+}
+
+.detail-source-badge {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.detail-disposition {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  color: var(--ghost);
+}
+
+.detail-disposition[data-disposition="signal"] {
+  color: var(--signal-green);
+}
+
+.detail-disposition[data-disposition="ignored"] {
+  color: var(--rule);
+}
+
+.detail-body {
+  flex: 1;
+  padding: 24px 32px;
+}
+
+.detail-link {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Twitter detail ────────────────────────────────────── */
+
+.detail-tweet {
+  max-width: 520px;
+}
+
+.detail-tweet-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.detail-tweet-name {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.detail-tweet-handle {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.detail-tweet-content {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--primary);
+  white-space: pre-wrap;
+}
+
+.detail-tweet-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.detail-tweet-date {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--ghost);
+}
+
+/* ── Twitter oEmbed ────────────────────────────────────── */
+
+.detail-tweet-embed {
+  max-width: 520px;
+}
+
+.detail-tweet-embed .twitter-tweet {
+  margin: 0 !important;
+}
+
+.detail-tweet-loading-text {
+  color: var(--ghost);
+  font-style: italic;
+}
+
+/* ── Twitter article detail ────────────────────────────── */
+
+.detail-article {
+  max-width: 640px;
+}
+
+.detail-article-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.detail-article-meta {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.detail-article-body {
+  font-family: 'Lora', serif;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--primary);
+  white-space: pre-wrap;
+}
+
+.detail-article-footer {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── RSS detail ────────────────────────────────────────── */
+
+.detail-rss {
+  max-width: 600px;
+}
+
+.detail-rss-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.detail-rss-meta {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.detail-rss-body {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--primary);
+  white-space: pre-wrap;
+}
+
+/* ── Readwise detail ───────────────────────────────────── */
+
+.detail-readwise {
+  max-width: 520px;
+}
+
+.detail-readwise-quote {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--primary);
+  border-left: 3px solid var(--accent);
+  padding-left: 20px;
+  margin: 0 0 20px;
+  font-style: italic;
+}
+
+.detail-readwise-source {
+  font-family: 'Cousine', monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.detail-readwise-title {
+  font-weight: 600;
+}
+
+.detail-readwise-author {
+  color: var(--ghost);
+}
+
+/* ── Vault / note detail ───────────────────────────────── */
+
+.detail-note {
+  max-width: 600px;
+}
+
+.detail-note-breadcrumb {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.detail-note-content {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--primary);
+  white-space: pre-wrap;
+}
+
+.detail-note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.detail-note-tag {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Apple Notes detail ────────────────────────────────── */
+
+.detail-apple-note {
+  max-width: 600px;
+}
+
+.detail-apple-note-title {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+
+.detail-apple-note-breadcrumb {
+  font-family: 'Cousine', monospace;
+  font-size: 9px;
+  color: var(--ghost);
+  margin-bottom: 16px;
+}
+
+.detail-apple-note-content {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--primary);
+  white-space: pre-wrap;
+  border-left: 2px solid var(--accent);
+  padding-left: 16px;
+}
+
+/* ── Podcast detail ────────────────────────────────────── */
+
+.detail-podcast {
+  max-width: 600px;
+}
+
+.detail-podcast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.detail-podcast-name {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.detail-podcast-format {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.detail-podcast-content {
+  font-family: 'Lora', serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--primary);
+  white-space: pre-wrap;
+}
+
+/* ── Triage bar ────────────────────────────────────────── */
+
+.triage-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.triage-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--secondary);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.triage-action:hover:not(:disabled) {
+  background: var(--bg3);
+  color: var(--primary);
+}
+
+.triage-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.triage-action.is-current {
+  border-color: var(--accent-12);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.triage-action--ignore:hover:not(:disabled) {
+  color: var(--err);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.triage-action-key {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+  background: var(--bg3);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* ── Card Triage button in sidebar ──────────────────────── */
+
+.card-triage-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 8px);
+  margin: 4px 4px 0;
+  padding: 7px 12px;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-12);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.card-triage-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
