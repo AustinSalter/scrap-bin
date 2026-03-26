@@ -3,6 +3,7 @@ import type {
   ClusterView,
   Disposition,
   DispositionCounts,
+  ExtractedArticle,
   Fragment,
   HighlightRange,
   SourceType,
@@ -35,6 +36,7 @@ import {
   setDisposition,
   setHighlights,
   getDispositionCounts,
+  extractArticle,
 } from '../api/commands';
 import {
   deriveStatusData,
@@ -43,7 +45,7 @@ import {
 
 export type UIState = 'overview' | 'browsing' | 'threaded';
 export type RailIcon = 'landscape' | 'stream' | 'search' | 'settings';
-export type ActiveView = 'landscape' | 'settings' | 'stream-triage' | 'inbox-triage';
+export type ActiveView = 'landscape' | 'settings' | 'stream-triage' | 'inbox-triage' | 'reader';
 export type InboxSourceFilter = 'all' | SourceType;
 
 interface LoadingState {
@@ -105,6 +107,14 @@ interface AppState {
   inboxLoading: boolean;
   inboxAnimating: 'swipe-right' | 'swipe-left' | 'swipe-up' | null;
 
+  // Reader state
+  activeReader: {
+    fragmentId: string;
+    article: ExtractedArticle;
+    highlights: HighlightRange[];
+    previousView: ActiveView;
+  } | null;
+
   // Interaction state
   dragContext: DragContext | null;
   editingClusterId: number | null;
@@ -144,6 +154,10 @@ interface AppState {
   fetchTriageCounts: () => Promise<void>;
   triageDisposition: (id: string, disposition: Disposition) => Promise<void>;
   saveHighlights: (id: string, highlights: HighlightRange[]) => Promise<void>;
+
+  // Reader actions
+  openReader: (fragmentId: string, url: string, highlights: HighlightRange[]) => Promise<void>;
+  closeReader: () => void;
 
   // Async actions
   fetchInitialData: () => Promise<void>;
@@ -208,6 +222,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   inboxTotalCount: 0,
   inboxLoading: false,
   inboxAnimating: null,
+
+  // Reader state
+  activeReader: null,
 
   // Triage state
   triageTab: 'all',
@@ -526,7 +543,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveHighlights: async (id, highlights) => {
     try {
       const updatedFragment = await setHighlights(id, highlights);
-      const { triageFragments, inboxCards } = get();
+      const { triageFragments, inboxCards, activeReader } = get();
 
       const newTriageFragments = triageFragments.map((f) =>
         f.id === id ? updatedFragment : f
@@ -535,11 +552,44 @@ export const useAppStore = create<AppState>((set, get) => ({
         f.id === id ? updatedFragment : f
       );
 
-      set({ triageFragments: newTriageFragments, inboxCards: newInboxCards });
+      const updates: Partial<ReturnType<typeof get>> = {
+        triageFragments: newTriageFragments,
+        inboxCards: newInboxCards,
+      };
+
+      // Also update the reader's highlights if it's showing this fragment
+      if (activeReader && activeReader.fragmentId === id) {
+        updates.activeReader = { ...activeReader, highlights };
+      }
+
+      set(updates);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ error: `Save highlights failed: ${msg}` });
     }
+  },
+
+  openReader: async (fragmentId, url, highlights) => {
+    try {
+      const article = await extractArticle(url);
+      set({
+        activeReader: {
+          fragmentId,
+          article,
+          highlights,
+          previousView: get().activeView,
+        },
+        activeView: 'reader' as ActiveView,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ error: `Failed to extract article: ${msg}` });
+    }
+  },
+
+  closeReader: () => {
+    const prev = get().activeReader?.previousView ?? 'stream-triage';
+    set({ activeReader: null, activeView: prev });
   },
 
   addStreamItems: (fragments) => {

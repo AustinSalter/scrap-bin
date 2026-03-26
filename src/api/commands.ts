@@ -6,6 +6,7 @@ import type {
   Fragment,
   FragmentFilter,
   FragmentPage,
+  ExtractedArticle,
   HighlightRange,
   ThreadView,
   SearchResult,
@@ -317,4 +318,10 @@ export async function setHighlights(id: string, highlights: HighlightRange[]): P
 
 export async function getDispositionCounts(): Promise<DispositionCounts> {
   return invoke<DispositionCounts>('get_disposition_counts');
+}
+
+// ── Reader ──────────────────────────────────────────────
+
+export async function extractArticle(url: string): Promise<ExtractedArticle> {
+  return invoke<ExtractedArticle>('extract_article', { url });
 }

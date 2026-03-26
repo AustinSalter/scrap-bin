@@ -160,6 +160,13 @@ export interface ThreadView {
   similarity: number;
 }
 
+export interface ExtractedArticle {
+  url: string;
+  title: string | null;
+  text: string;
+  word_count: number;
+}
+
 export interface SearchResult {
   id: string;
   content: string;

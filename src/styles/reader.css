@@ -1,0 +1,148 @@
+/* ── Reader View ─────────────────────────────────────── */
+
+.reader {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Progress bar */
+.reader-progress {
+  height: 2px;
+  background: var(--bg3);
+  flex-shrink: 0;
+}
+
+.reader-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 0 1px 1px 0;
+  transition: width 0.3s;
+}
+
+/* Toolbar */
+.reader-toolbar {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.reader-back {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.reader-back:hover {
+  background: var(--bg3);
+  color: var(--primary);
+}
+
+.reader-source-pill {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.reader-source-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.reader-toolbar-spacer {
+  flex: 1;
+}
+
+.reader-meta {
+  font-family: 'Cousine', monospace;
+  font-size: 8px;
+  color: var(--ghost);
+}
+
+.reader-action {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  color: var(--secondary);
+  background: var(--bg);
+  transition: all 0.15s;
+}
+
+.reader-action:hover {
+  background: var(--bg3);
+  color: var(--primary);
+}
+
+/* Scroll body */
+.reader-body {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.reader-content {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 36px 40px 80px;
+}
+
+/* Article header */
+.reader-article-header {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reader-article-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+/* Body text — Tidepool typography */
+.reader-body-text {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 14px;
+  line-height: 1.95;
+  color: var(--primary);
+  white-space: pre-wrap;
+}

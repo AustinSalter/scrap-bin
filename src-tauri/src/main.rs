@@ -9,6 +9,7 @@ mod fragment;
 mod grpc_client;
 mod markdown;
 mod pipeline;
+mod reader;
 mod search;
 mod sidecar;
 mod sources;
@@ -108,6 +109,8 @@ fn main() {
             // Fragment mutation
             pipeline::set_disposition,
             pipeline::set_highlights,
+            // Reader
+            reader::extract_article,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
