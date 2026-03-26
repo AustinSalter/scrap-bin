@@ -30,6 +30,8 @@ pub enum DispatchError {
     Rss(#[from] rss::SourceError),
     #[error("Apple Notes error: {0}")]
     AppleNotes(#[from] apple_notes::SourceError),
+    #[error("Chrome error: {0}")]
+    Chrome(#[from] chrome::SourceError),
 }
 
 impl Serialize for DispatchError {
@@ -141,6 +143,29 @@ pub async fn test_source(source_id: String) -> Result<TestSourceResult, Dispatch
                 message: format!("Found {} .md files", result.files_scanned),
             })
         }
+        SourceType::ChromeBookmarks => {
+            let path = source
+                .config
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if path.is_empty() {
+                return Ok(TestSourceResult {
+                    success: false,
+                    message: "No bookmark export file configured".to_string(),
+                });
+            }
+            let exists = std::path::Path::new(&path).exists();
+            Ok(TestSourceResult {
+                success: exists,
+                message: if exists {
+                    format!("Bookmark file found: {}", path)
+                } else {
+                    format!("Bookmark file not found: {}", path)
+                },
+            })
+        }
         _ => Err(DispatchError::UnsupportedSourceType(
             source.source_type.to_string(),
         )),
@@ -233,6 +258,35 @@ pub async fn sync_source(source_id: String) -> Result<SyncSourceResult, Dispatch
                 message: format!(
                     "Imported {} fragments from {} files",
                     result.imported, result.files_scanned
+                ),
+                fragments_imported: result.imported,
+            })
+        }
+        SourceType::ChromeBookmarks => {
+            let path = source
+                .config
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let fetch_content = source
+                .config
+                .get("fetch_content")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if path.is_empty() {
+                return Ok(SyncSourceResult {
+                    success: false,
+                    message: "No bookmark export file configured".to_string(),
+                    fragments_imported: 0,
+                });
+            }
+            let result = chrome::source_chrome_import_bookmarks(path, fetch_content).await?;
+            Ok(SyncSourceResult {
+                success: true,
+                message: format!(
+                    "Imported {} fragments from {} bookmarks ({} skipped)",
+                    result.imported, result.bookmarks_parsed, result.skipped_duplicate
                 ),
                 fragments_imported: result.imported,
             })
